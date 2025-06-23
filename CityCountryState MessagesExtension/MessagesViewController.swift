@@ -56,10 +56,6 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
             print("Error: Could not find place_data.plist")
         }
 
-        if let soundURL = Bundle.main.url(forResource: "ding", withExtension: "wav") {
-            AudioServicesCreateSystemSoundID(soundURL as CFURL, &correctSoundID)
-        }
-
         setupUI()
         inputField.delegate = self
     }
@@ -234,8 +230,29 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
                     }
                 }
 
+                self.requestPresentationStyle(.compact)
+
                 let layout = MSMessageTemplateLayout()
-                layout.caption = "CityCountryState Challenge"
+                layout.image = UIImage(named: "newimage")
+                if let baseImage = layout.image {
+                    let playButton = UIImage(systemName: "play.circle.fill")?.withTintColor(.white, renderingMode: .alwaysOriginal)
+                    let size = baseImage.size
+                    UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
+                    baseImage.draw(in: CGRect(origin: .zero, size: size))
+                    if let playButton = playButton {
+                        let playSize = CGSize(width: size.width * 0.3, height: size.width * 0.3)
+                        let playOrigin = CGPoint(x: (size.width - playSize.width)/2, y: (size.height - playSize.height)/2)
+                        playButton.draw(in: CGRect(origin: playOrigin, size: playSize))
+                    }
+                    let combined = UIGraphicsGetImageFromCurrentImageContext()
+                    UIGraphicsEndImageContext()
+                    layout.image = combined
+                }
+                layout.mediaFileURL = nil
+                layout.imageTitle = nil
+                layout.subcaption = nil
+                layout.trailingCaption = nil
+                layout.caption = "LET’S PLAY CITY COUNTRY STATE!"
 
                 let message = MSMessage()
                 message.layout = layout
@@ -294,7 +311,7 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
             else if allStates.contains(rawInput) { correctStates += 1 }
             feedbackLabel.text = "Nice one!"
             feedbackGenerator.impactOccurred()
-            AudioServicesPlaySystemSound(correctSoundID)
+            AudioServicesPlaySystemSound(1306) // apple pay chime
             UIView.animate(withDuration: 0.2, animations: {
                 self.feedbackLabel.transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
             }) { _ in
