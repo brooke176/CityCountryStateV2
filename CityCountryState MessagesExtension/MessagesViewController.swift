@@ -11,6 +11,15 @@ import AudioToolbox
 
 class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
 
+    // MARK: - Player Scores and Game Completion
+    private var playerOneScore: Int?
+    private var playerTwoScore: Int?
+    private var gameIsCompleted: Bool = false
+
+    // MARK: - Opponent Score
+    private var opponentScoreFromMessage: Int?
+
+    // MARK: - Game State
     private let timeLimit: TimeInterval = 60
     private var timer: Timer?
     private var timeRemaining: TimeInterval = 0
@@ -18,6 +27,7 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
     private var currentLetter = "A"
     private var usedWords = Set<String>()
 
+    // MARK: - Data
     private var allCities = Set<String>()
     private var allCountries = Set<String>()
     private var allStates = Set<String>()
@@ -26,6 +36,7 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
     private var correctCountries = 0
     private var correctStates = 0
 
+    // MARK: - UI Components
     private var inputField: UITextField!
     private var submitButton: UIButton!
     private var timerLabel: UILabel!
@@ -33,54 +44,87 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
     private var feedbackLabel: UILabel!
     private var letterDisplayLabel: UILabel!
     private var timerRingLayer: CAShapeLayer!
-    private let feedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
-
     private var plusOneLabel: UILabel!
+
+    // MARK: - Sounds & Feedback
+    private let feedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
     private var correctSoundID: SystemSoundID = 0
 
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        // Load place data from plist
         if let url = Bundle.main.url(forResource: "place_data", withExtension: "plist") {
             if let data = try? Data(contentsOf: url),
                let dict = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: [String]] {
-
                 allCities = Set((dict["cities"] ?? []).map { $0.lowercased() })
                 allCountries = Set((dict["countries"] ?? []).map { $0.lowercased() })
                 allStates = Set((dict["states"] ?? []).map { $0.lowercased() })
-
-                print("Loaded \(allCities.count) cities, \(allCountries.count) countries, \(allStates.count) states")
+                // print("Loaded \(allCities.count) cities, \(allCountries.count) countries, \(allStates.count) states")
             } else {
-                print("Error: Failed to parse place_data.plist")
+                // print("Error: Failed to parse place_data.plist")
             }
         } else {
-            print("Error: Could not find place_data.plist")
+            // print("Error: Could not find place_data.plist")
         }
-
         setupUI()
         inputField.delegate = self
     }
 
     override func willBecomeActive(with conversation: MSConversation) {
         super.willBecomeActive(with: conversation)
-
-        if let url = conversation.selectedMessage?.url,
-           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let letterItem = components.queryItems?.first(where: { $0.name == "letter" }),
-           let letter = letterItem.value {
-            currentLetter = letter
-            
-            if let scoreItem = components.queryItems?.first(where: { $0.name == "score" }),
-               let opponentScoreStr = scoreItem.value,
-               let opponentScore = Int(opponentScoreStr),
-               let completedItem = components.queryItems?.first(where: { $0.name == "completed" }),
-               completedItem.value == "true" {
-                handleIncomingMessage(opponentScore: opponentScore)
-                return
-            }
+        guard let url = conversation.selectedMessage?.url,
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            resetGame()
+            return
         }
-        resetGame()
+
+        let letter = components.queryItems?.first(where: { $0.name == "letter" })?.value
+        let p1ScoreStr = components.queryItems?.first(where: { $0.name == "p1score" })?.value
+        let p2ScoreStr = components.queryItems?.first(where: { $0.name == "p2score" })?.value
+        let completedStr = components.queryItems?.first(where: { $0.name == "completed" })?.value
+
+        if let letter = letter {
+            currentLetter = letter
+        }
+
+        if let p1 = p1ScoreStr, let p1Int = Int(p1) {
+            playerOneScore = p1Int
+        }
+
+        if let p2 = p2ScoreStr, let p2Int = Int(p2) {
+            playerTwoScore = p2Int
+        }
+
+        gameIsCompleted = (completedStr == "true")
+
+        if gameIsCompleted, let p1 = playerOneScore, let p2 = playerTwoScore {
+            showFinalResult(p1: p1, p2: p2)
+        } else if playerOneScore != nil && playerTwoScore == nil {
+            resetGame()
+        } else {
+            resetGame()
+        }
+    }
+    private func showFinalResult(p1: Int, p2: Int) {
+        inputField.isEnabled = false
+        submitButton.isEnabled = false
+
+        let resultText: String
+        if p2 > p1 {
+            resultText = "🏆 Player 2 wins! (\(p2) vs \(p1))"
+        } else if p2 < p1 {
+            resultText = "🏆 Player 1 wins! (\(p1) vs \(p2))"
+        } else {
+            resultText = "🤝 It's a tie! (\(p1) vs \(p2))"
+        }
+
+        feedbackLabel.text = resultText
+        feedbackLabel.textColor = .label
+        feedbackLabel.font = UIFont.systemFont(ofSize: 22, weight: .bold)
     }
 
+    // MARK: - UI Setup
     private func setupUI() {
         view.backgroundColor = .systemGroupedBackground
         let ui = GameUIBuilder.build(in: view, delegate: self)
@@ -179,9 +223,9 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
         ])
     }
 
-
+    // MARK: - Game Logic
     private func resetGame() {
-        let allowedLetters = "ABCDEFGHIJKLMNOPQRSTUVWYZ"
+        let allowedLetters = "ABCDEFGHIJKLMNOPRSTUVWZ"
         currentLetter = String(allowedLetters.randomElement()!)
         letterDisplayLabel.text = currentLetter
         score = 0
@@ -194,6 +238,7 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
         startTimer()
     }
 
+    // MARK: - Timer Control
     private func startTimer() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -230,46 +275,55 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
                     }
                 }
 
+                // Track scores for both players and completion
+                if self.playerOneScore == nil {
+                    self.playerOneScore = self.score
+                } else {
+                    self.playerTwoScore = self.score
+                    self.gameIsCompleted = true
+                }
+
+                // Insert opponent score result if available
+                if let p1 = self.playerOneScore, let p2 = self.playerTwoScore, self.gameIsCompleted {
+                    self.showFinalResult(p1: p1, p2: p2)
+                }
+
                 self.requestPresentationStyle(.compact)
 
                 let layout = MSMessageTemplateLayout()
                 layout.image = UIImage(named: "newimage")
-                if let baseImage = layout.image {
-                    let playButton = UIImage(systemName: "play.circle.fill")?.withTintColor(.white, renderingMode: .alwaysOriginal)
-                    let size = baseImage.size
-                    UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                    baseImage.draw(in: CGRect(origin: .zero, size: size))
-                    if let playButton = playButton {
-                        let playSize = CGSize(width: size.width * 0.3, height: size.width * 0.3)
-                        let playOrigin = CGPoint(x: (size.width - playSize.width)/2, y: (size.height - playSize.height)/2)
-                        playButton.draw(in: CGRect(origin: playOrigin, size: playSize))
-                    }
-                    let combined = UIGraphicsGetImageFromCurrentImageContext()
-                    UIGraphicsEndImageContext()
-                    layout.image = combined
-                }
-                layout.mediaFileURL = nil
-                layout.imageTitle = nil
-                layout.subcaption = nil
-                layout.trailingCaption = nil
                 layout.caption = "LET’S PLAY CITY COUNTRY STATE!"
+
+                var components = URLComponents()
+                // New logic for setting queryItems based on player turn
+                if self.playerOneScore == nil {
+                    // Player 1 just finished
+                    self.playerOneScore = self.score
+                    components.queryItems = [
+                        URLQueryItem(name: "letter", value: self.currentLetter),
+                        URLQueryItem(name: "p1score", value: String(self.playerOneScore!)),
+                        URLQueryItem(name: "completed", value: "false")
+                    ]
+                } else {
+                    // Player 2 just finished
+                    self.playerTwoScore = self.score
+                    components.queryItems = [
+                        URLQueryItem(name: "letter", value: self.currentLetter),
+                        URLQueryItem(name: "p1score", value: String(self.playerOneScore!)),
+                        URLQueryItem(name: "p2score", value: String(self.playerTwoScore!)),
+                        URLQueryItem(name: "completed", value: "true")
+                    ]
+                }
 
                 let message = MSMessage()
                 message.layout = layout
-
-                var components = URLComponents()
-                components.queryItems = [
-                    URLQueryItem(name: "letter", value: self.currentLetter),
-                    URLQueryItem(name: "score", value: String(self.score))
-                ]
-                components.queryItems?.append(URLQueryItem(name: "completed", value: "true"))
                 message.url = components.url
 
                 self.activeConversation?.insert(message, completionHandler: { error in
                     if let error = error {
-                        print("Error: Failed to send message: \(error.localizedDescription)")
+                        // print("Error: Failed to send message: \(error.localizedDescription)")
                     } else {
-                        print("Game message sent to user")
+                        // print("Game message sent to user")
                     }
                 })
             }
@@ -283,27 +337,28 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
         timerRingLayer.strokeEnd = progress
     }
 
+    // MARK: - Gameplay Actions
     @objc private func submitTapped() {
         guard let rawInput = inputField.text?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
               !rawInput.isEmpty else {
             feedbackLabel.text = "Huh"
-            print("Error: Empty or nil input")
+            // print("Error: Empty or nil input")
             return
         }
 
         if !rawInput.hasPrefix(currentLetter.lowercased()) {
             feedbackLabel.text = "Hmm... doesn’t start with \(currentLetter)"
-            print("Error: Input does not start with \(currentLetter)")
+            // print("Error: Input does not start with \(currentLetter)")
             return
         }
 
         if usedWords.contains(rawInput) {
             feedbackLabel.text = "Already used that one!"
-            print("Error: Duplicate entry: \(rawInput)")
+            // print("Error: Duplicate entry: \(rawInput)")
             return
         }
 
-        if isValidPlace(rawInput) {
+        if (allCities.contains(rawInput) || allCountries.contains(rawInput) || allStates.contains(rawInput)) {
             usedWords.insert(rawInput)
             score += 1
             if allCities.contains(rawInput) { correctCities += 1 }
@@ -311,7 +366,7 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
             else if allStates.contains(rawInput) { correctStates += 1 }
             feedbackLabel.text = "Nice one!"
             feedbackGenerator.impactOccurred()
-            AudioServicesPlaySystemSound(1306) // apple pay chime
+            AudioServicesPlaySystemSound(1306) // Apple Pay chime
             UIView.animate(withDuration: 0.2, animations: {
                 self.feedbackLabel.transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
             }) { _ in
@@ -333,22 +388,16 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
         updateLabels()
     }
 
+    // MARK: - UITextFieldDelegate
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         submitTapped()
         return true
     }
 
-    private func isValidPlace(_ word: String) -> Bool {
-        print("allCities: \(allCities)")
-        print("allCountries: \(allCountries)")
-        print("allStates: \(allStates)")
-
-        return allCities.contains(word) || allCountries.contains(word) || allStates.contains(word)
-    }
-    
+    // MARK: - Message Handling
     private func handleIncomingMessage(opponentScore: Int) {
-        inputField.isEnabled = false
-        submitButton.isEnabled = false
+        inputField.isEnabled = true
+        submitButton.isEnabled = true
 
         let resultText: String
         if score > opponentScore {
@@ -367,7 +416,7 @@ class MessagesViewController: MSMessagesAppViewController, UITextFieldDelegate {
 }
 
 private extension UITextField {
-    func setLeftPaddingPoints(_ amount:CGFloat){
+    func setLeftPaddingPoints(_ amount: CGFloat) {
         let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: self.frame.height))
         self.leftView = paddingView
         self.leftViewMode = .always
