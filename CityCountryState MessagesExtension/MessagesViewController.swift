@@ -2,8 +2,8 @@ import UIKit
 import Messages
 
 class MessagesViewController: MSMessagesAppViewController {
-    private var gameManager: GameManager?
-    private var battleRoomManager: BattleRoomManager?
+    var gameManager: GameManager?
+    var battleRoomManager: BattleRoomManager?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -24,7 +24,6 @@ class MessagesViewController: MSMessagesAppViewController {
             return
         }
         
-        // Delegate message handling to appropriate manager
         if components.queryItems?.contains(where: { $0.name == "mode" && $0.value == "battle" }) == true {
             battleRoomManager = BattleRoomManager(viewController: self)
             battleRoomManager?.joinRoom(from: url)
@@ -37,11 +36,11 @@ class MessagesViewController: MSMessagesAppViewController {
         gameManager?.showHomeScreen(in: view, target: self)
     }
     
-    @objc private func startClassicMode() {
+    @objc func startClassicMode() {
         GameManager.shared.startClassicMode()
     }
     
-    @objc private func sendBattleInviteMessage() {
+    @objc func sendBattleInviteMessage() {
         guard let conversation = activeConversation else { return }
         battleRoomManager = BattleRoomManager(viewController: self)
         battleRoomManager?.sendInviteMessage(in: conversation)
