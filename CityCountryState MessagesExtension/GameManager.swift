@@ -173,6 +173,13 @@ class GameManager: NSObject, UITextFieldDelegate {
     }
     
     // MARK: - Message Handling
+    private var battleManager: BattleModeManager? {
+        switch state {
+        case .battle(let manager): return manager
+        default: return nil
+        }
+    }
+    
     func handleIncomingMessage(components: URLComponents) {
         guard let modeValue = components.queryItems?.first(where: { $0.name == "mode" })?.value else {
             showHomeScreen(in: viewController?.view ?? UIView(), target: viewController as Any)
