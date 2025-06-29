@@ -239,6 +239,7 @@ class GameManager: NSObject, UITextFieldDelegate {
     func startClassicMode() {
         guard let vc = viewController else { return }
         classicManager = ClassicModeManager(viewController: vc)
+        battleManager = nil
         classicManager?.startGame()
     }
     
