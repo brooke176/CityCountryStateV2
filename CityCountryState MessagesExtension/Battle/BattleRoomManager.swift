@@ -149,6 +149,46 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         guard players.indices.contains(index) else { return }
         players[index].name = newName.isEmpty ? "You" : newName
     }
+
+    // MARK: - Message Handling
+    func handleIncomingMessage(components: URLComponents) {
+        guard let messageType = components.queryItems?.first(where: { $0.name == "type" })?.value else {
+            return
+        }
+        
+        switch messageType {
+        case "playerReady":
+            if let playerId = components.queryItems?.first(where: { $0.name == "playerId" })?.value,
+               let isReadyStr = components.queryItems?.first(where: { $0.name == "isReady" })?.value {
+                let isReady = (isReadyStr == "true")
+                updatePlayerReadyStatus(playerId: playerId, isReady: isReady)
+            }
+            
+        case "playerName":
+            if let playerId = components.queryItems?.first(where: { $0.name == "playerId" })?.value,
+               let newName = components.queryItems?.first(where: { $0.name == "name" })?.value {
+                updatePlayerName(playerId: playerId, newName: newName)
+            }
+            
+        default:
+            break
+        }
+    }
+    
+    private func updatePlayerReadyStatus(playerId: String, isReady: Bool) {
+        if let index = players.firstIndex(where: { $0.id == playerId }) {
+            players[index].isReady = isReady
+            startButton?.isEnabled = players.filter { $0.isReady }.count >= 2
+            tableView?.reloadData()
+        }
+    }
+    
+    private func updatePlayerName(playerId: String, newName: String) {
+        if let index = players.firstIndex(where: { $0.id == playerId }) {
+            players[index].name = newName
+            tableView?.reloadData()
+        }
+    }
 }
 
 class WaitingRoomPlayerCell: UITableViewCell {
