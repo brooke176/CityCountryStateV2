@@ -6,17 +6,8 @@ class GameManager: NSObject, UITextFieldDelegate {
     var usedWords = Set<String>()
 
     weak var viewController: MessagesViewController?
-    enum GameState {
-        case idle
-        case classic(score: Int, timeRemaining: TimeInterval, currentLetter: String)
-        case battle(BattleModeManager)
-    }
-    
-    private var state: GameState = .idle {
-        didSet {
-            updateUI()
-        }
-    }
+    private var classicManager: ClassicModeManager?
+    private var battleManager: BattleModeManager?
     
     private let timeLimit: TimeInterval = 30
     private var timer: Timer?
@@ -252,13 +243,10 @@ class GameManager: NSObject, UITextFieldDelegate {
     }
     
     func startBattleMode(with playerNames: [String]) {
-        let battleManager = BattleModeManager(
-            viewController: viewController,
-            playerNames: playerNames
-        )
-        state = .battle(battleManager)
-        battleManager.setupUI()
-        showGameUI()
+        guard let vc = viewController else { return }
+        battleManager = BattleModeManager(viewController: vc, playerNames: playerNames)
+        classicManager = nil
+        battleManager?.setupUI()
     }
     
     // MARK: - Message Handling

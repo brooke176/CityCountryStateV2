@@ -150,25 +150,35 @@ class BattleModeManager {
             return
         }
         
-        if GameData.allCities.contains(rawInput) || GameData.allCountries.contains(rawInput) || GameData.allStates.contains(rawInput) {
+        if GameData.allCities.contains(rawInput) {
             usedWords.insert(rawInput)
             players[activePlayerIndex].score += 1
-            
-            if GameData.allCities.contains(rawInput) { correctCities += 1 }
-            else if GameData.allCountries.contains(rawInput) { correctCountries += 1 }
-            else if GameData.allStates.contains(rawInput) { correctStates += 1 }
-            
-            vc.feedbackLabel.text = "✅ Correct! Next player's turn."
-            
-            activePlayerIndex = (activePlayerIndex + 1) % players.count
-            for index in players.indices {
-                players[index].isActive = (index == activePlayerIndex)
-            }
-            GameManager.shared.updatePlayerTurnIndicators(players: players)
-            startNewTurn()
+            correctCities += 1
+            handleCorrectAnswer()
+        } else if GameData.allCountries.contains(rawInput) {
+            usedWords.insert(rawInput)
+            players[activePlayerIndex].score += 1
+            correctCountries += 1
+            handleCorrectAnswer()
+        } else if GameData.allStates.contains(rawInput) {
+            usedWords.insert(rawInput)
+            players[activePlayerIndex].score += 1
+            correctStates += 1
+            handleCorrectAnswer()
         } else {
             vc.feedbackLabel.text = "❌ Not a valid place."
         }
+    }
+    
+    private func handleCorrectAnswer() {
+        guard let vc = viewController else { return }
+        vc.feedbackLabel.text = "✅ Correct! Next player's turn."
+        activePlayerIndex = (activePlayerIndex + 1) % players.count
+        for index in players.indices {
+            players[index].isActive = (index == activePlayerIndex)
+        }
+        GameManager.shared.updatePlayerTurnIndicators(players: players)
+        startNewTurn()
     }
     
     @objc func handleSubmitButtonTapped() {
