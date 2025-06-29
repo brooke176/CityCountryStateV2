@@ -166,7 +166,7 @@ class BattleModeManager {
             correctStates += 1
             handleCorrectAnswer()
         } else {
-            vc.feedbackLabel.text = "❌ Not a valid place."
+            vc.feedbackLabel.text = "We don't know this one!"
         }
     }
     

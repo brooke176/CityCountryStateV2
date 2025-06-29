@@ -73,7 +73,8 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         ]
 
         let layout = MSMessageTemplateLayout()
-        layout.caption = "Join the Battle Waiting Room!"
+        layout.caption = "LET’S PLAY CITY COUNTRY STATE! (BATTLE MODE)"
+        layout.image = UIImage(named: "newimage")
         
         let message = MSMessage()
         message.layout = layout

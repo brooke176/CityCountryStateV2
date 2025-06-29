@@ -1,78 +1,228 @@
-//
-//  GameUIBuilder.swift
-//  CityCountryState
-//
-//  Created by Brooke Skinner on 6/22/25.
-//
-
 import UIKit
 
-class GameUIBuilder {
-    static func build(in parentView: UIView, delegate: UITextFieldDelegate) -> (
-        promptLabel: UILabel,
+struct GameUIHelper {
+    static func updateLabels(timerLabel: UILabel, scoreLabel: UILabel, timerRingLayer: CAShapeLayer, timeRemaining: TimeInterval, timeLimit: TimeInterval, score: Int) {
+        timerLabel.text = "\(Int(timeRemaining))"
+        scoreLabel.text = "Score: \(score)"
+        let progress = CGFloat(timeRemaining / timeLimit)
+        timerRingLayer.strokeEnd = progress
+    }
+
+    static func showFinalResult(feedbackLabel: UILabel, inputField: UITextField, submitButton: UIButton, p1: Int, p2: Int) {
+        inputField.isEnabled = false
+        submitButton.isEnabled = false
+
+        let resultText: String
+        if p2 > p1 {
+            resultText = "🏆 Player 2 wins! (\(p2) vs \(p1))"
+        } else if p2 < p1 {
+            resultText = "🏆 Player 1 wins! (\(p1) vs \(p2))"
+        } else {
+            resultText = "🤝 It's a tie! (\(p1) vs \(p2))"
+        }
+
+        feedbackLabel.text = resultText
+        feedbackLabel.textColor = .label
+        feedbackLabel.font = UIFont.systemFont(ofSize: 22, weight: .bold)
+    }
+
+    static func handleIncomingMessage(feedbackLabel: UILabel, inputField: UITextField, submitButton: UIButton, score: Int, opponentScore: Int) {
+        inputField.isEnabled = true
+        submitButton.isEnabled = true
+
+        let resultText: String
+        if score > opponentScore {
+            resultText = "🏆 You win! (\(score) vs \(opponentScore))"
+        } else if score < opponentScore {
+            resultText = "😞 You lose... (\(score) vs \(opponentScore))"
+        } else {
+            resultText = "🤝 It's a tie! (\(score) vs \(opponentScore))"
+        }
+
+        feedbackLabel.text = resultText
+        feedbackLabel.textColor = .label
+        feedbackLabel.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
+    }
+
+    static func buildHomeScreen(in parentView: UIView, target: Any, classicSelector: Selector, battleSelector: Selector) {
+        parentView.subviews.forEach { $0.removeFromSuperview() }
+
+        let classicButton = UIButton(type: .system)
+        classicButton.setTitle("Play Classic", for: .normal)
+        classicButton.addTarget(target, action: classicSelector, for: .touchUpInside)
+        classicButton.translatesAutoresizingMaskIntoConstraints = false
+
+        let battleButton = UIButton(type: .system)
+        battleButton.setTitle("Play Battle", for: .normal)
+        battleButton.addTarget(target, action: battleSelector, for: .touchUpInside)
+        battleButton.translatesAutoresizingMaskIntoConstraints = false
+
+        parentView.addSubview(classicButton)
+        parentView.addSubview(battleButton)
+
+        NSLayoutConstraint.activate([
+            classicButton.centerXAnchor.constraint(equalTo: parentView.centerXAnchor),
+            classicButton.centerYAnchor.constraint(equalTo: parentView.centerYAnchor, constant: -30),
+
+            battleButton.centerXAnchor.constraint(equalTo: parentView.centerXAnchor),
+            battleButton.topAnchor.constraint(equalTo: classicButton.bottomAnchor, constant: 20)
+        ])
+    }
+
+    static func buildGameUI(in parentView: UIView, delegate: UITextFieldDelegate) -> (
         inputField: UITextField,
         submitButton: UIButton,
         timerLabel: UILabel,
         scoreLabel: UILabel,
-        feedbackLabel: UILabel
+        feedbackLabel: UILabel,
+        letterDisplayLabel: UILabel,
+        timerRingLayer: CAShapeLayer,
+        plusOneLabel: UILabel
     ) {
-        let promptLabel = UILabel()
-        promptLabel.textAlignment = .center
-        promptLabel.font = UIFont.systemFont(ofSize: 24, weight: .bold)
-        promptLabel.numberOfLines = 0
-        promptLabel.textColor = .label
+        var inputField: UITextField!
+        var submitButton: UIButton!
+        var timerLabel: UILabel!
+        var scoreLabel: UILabel!
+        var feedbackLabel: UILabel!
+        var letterDisplayLabel: UILabel!
+        var timerRingLayer: CAShapeLayer!
+        var plusOneLabel: UILabel!
 
-        let inputField = UITextField()
-        inputField.placeholder = "Type a place..."
+        parentView.subviews.forEach { $0.removeFromSuperview() }
+        parentView.backgroundColor = .systemGroupedBackground
+
+        inputField = UITextField()
         inputField.borderStyle = .roundedRect
-        inputField.backgroundColor = .systemBackground
-        inputField.textColor = .label
-        inputField.layer.cornerRadius = 10
-        inputField.font = UIFont.systemFont(ofSize: 18)
+        inputField.placeholder = "Enter place..."
+        inputField.translatesAutoresizingMaskIntoConstraints = false
         inputField.delegate = delegate
+        parentView.addSubview(inputField)
 
-        let submitButton = UIButton(type: .system)
+        submitButton = UIButton(type: .system)
         submitButton.setTitle("Submit", for: .normal)
-        submitButton.setTitleColor(.white, for: .normal)
-        submitButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
-        submitButton.backgroundColor = .systemBlue
-        submitButton.layer.cornerRadius = 10
+        submitButton.translatesAutoresizingMaskIntoConstraints = false
+        parentView.addSubview(submitButton)
 
-        let timerLabel = UILabel()
+        timerLabel = UILabel()
         timerLabel.textAlignment = .center
-        timerLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 16, weight: .medium)
-        timerLabel.textColor = .secondaryLabel
+        timerLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 22, weight: .bold)
+        timerLabel.textColor = .label
+        timerLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let scoreLabel = UILabel()
+        let timerRingContainer = UIView()
+        timerRingContainer.translatesAutoresizingMaskIntoConstraints = false
+        let ringDiameter: CGFloat = 60
+        let ringPath = UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: ringDiameter, height: ringDiameter))
+
+        let backgroundRingLayer = CAShapeLayer()
+        backgroundRingLayer.path = ringPath.cgPath
+        backgroundRingLayer.strokeColor = UIColor.systemGray4.cgColor
+        backgroundRingLayer.fillColor = UIColor.clear.cgColor
+        backgroundRingLayer.lineWidth = 6
+        timerRingContainer.layer.addSublayer(backgroundRingLayer)
+
+        timerRingLayer = CAShapeLayer()
+        timerRingLayer.path = ringPath.cgPath
+        timerRingLayer.strokeColor = UIColor.systemBlue.cgColor
+        timerRingLayer.fillColor = UIColor.clear.cgColor
+        timerRingLayer.lineWidth = 6
+        timerRingLayer.strokeEnd = 1.0
+        timerRingContainer.layer.addSublayer(timerRingLayer)
+        timerRingContainer.addSubview(timerLabel)
+        parentView.addSubview(timerRingContainer)
+
+        scoreLabel = UILabel()
         scoreLabel.textAlignment = .center
-        scoreLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 16, weight: .medium)
-        scoreLabel.textColor = .secondaryLabel
+        scoreLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        scoreLabel.textColor = .label
+        scoreLabel.translatesAutoresizingMaskIntoConstraints = false
+        parentView.addSubview(scoreLabel)
 
-        let feedbackLabel = UILabel()
+        feedbackLabel = UILabel()
         feedbackLabel.textAlignment = .center
-        feedbackLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-        feedbackLabel.textColor = .tertiaryLabel
+        feedbackLabel.font = UIFont.systemFont(ofSize: 14, weight: .regular)
         feedbackLabel.numberOfLines = 0
+        feedbackLabel.lineBreakMode = .byWordWrapping
+        feedbackLabel.textColor = .label
+        feedbackLabel.translatesAutoresizingMaskIntoConstraints = false
+        parentView.addSubview(feedbackLabel)
 
-        let stack = UIStackView(arrangedSubviews: [
-            promptLabel,
-            inputField,
-            submitButton,
-            timerLabel,
-            scoreLabel,
-            feedbackLabel
-        ])
-        stack.axis = .vertical
-        stack.spacing = 16
-        stack.translatesAutoresizingMaskIntoConstraints = false
+        let letterCaptionLabel = UILabel()
+        letterCaptionLabel.translatesAutoresizingMaskIntoConstraints = false
+        letterCaptionLabel.text = "Your letter is..."
+        letterCaptionLabel.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
+        letterCaptionLabel.textColor = .label
+        letterCaptionLabel.textAlignment = .center
+        parentView.addSubview(letterCaptionLabel)
 
-        parentView.addSubview(stack)
+        letterDisplayLabel = UILabel()
+        letterDisplayLabel.translatesAutoresizingMaskIntoConstraints = false
+        letterDisplayLabel.font = UIFont.systemFont(ofSize: 72, weight: .black)
+        letterDisplayLabel.textAlignment = .center
+        letterDisplayLabel.textColor = .systemIndigo
+        parentView.addSubview(letterDisplayLabel)
+
+        let instructionsLabel = UILabel()
+        instructionsLabel.translatesAutoresizingMaskIntoConstraints = false
+        instructionsLabel.font = UIFont.systemFont(ofSize: 16, weight: .regular)
+        instructionsLabel.textAlignment = .center
+        instructionsLabel.textColor = .secondaryLabel
+        instructionsLabel.text = "Type as many cities, countries, or states as you can."
+        parentView.addSubview(instructionsLabel)
+
+        plusOneLabel = UILabel()
+        plusOneLabel.text = "+1"
+        plusOneLabel.font = UIFont.systemFont(ofSize: 36, weight: .heavy)
+        plusOneLabel.textColor = .systemYellow
+        plusOneLabel.alpha = 0
+        plusOneLabel.translatesAutoresizingMaskIntoConstraints = false
+        parentView.addSubview(plusOneLabel)
+
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: parentView.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: parentView.trailingAnchor, constant: -20),
-            stack.centerYAnchor.constraint(equalTo: parentView.centerYAnchor)
+            timerRingContainer.topAnchor.constraint(equalTo: parentView.safeAreaLayoutGuide.topAnchor, constant: 20),
+            timerRingContainer.centerXAnchor.constraint(equalTo: parentView.centerXAnchor),
+            timerRingContainer.widthAnchor.constraint(equalToConstant: ringDiameter),
+            timerRingContainer.heightAnchor.constraint(equalToConstant: ringDiameter),
+
+            timerLabel.centerXAnchor.constraint(equalTo: timerRingContainer.centerXAnchor),
+            timerLabel.centerYAnchor.constraint(equalTo: timerRingContainer.centerYAnchor),
+
+            scoreLabel.topAnchor.constraint(equalTo: timerRingContainer.bottomAnchor, constant: 10),
+            scoreLabel.centerXAnchor.constraint(equalTo: parentView.centerXAnchor),
+
+            feedbackLabel.topAnchor.constraint(equalTo: scoreLabel.bottomAnchor, constant: 10),
+            feedbackLabel.centerXAnchor.constraint(equalTo: parentView.centerXAnchor),
+
+            letterCaptionLabel.topAnchor.constraint(equalTo: feedbackLabel.bottomAnchor, constant: 20),
+            letterCaptionLabel.centerXAnchor.constraint(equalTo: parentView.centerXAnchor),
+
+            letterDisplayLabel.topAnchor.constraint(equalTo: letterCaptionLabel.bottomAnchor, constant: 8),
+            letterDisplayLabel.centerXAnchor.constraint(equalTo: parentView.centerXAnchor),
+
+            instructionsLabel.topAnchor.constraint(equalTo: letterDisplayLabel.bottomAnchor, constant: 10),
+            instructionsLabel.centerXAnchor.constraint(equalTo: parentView.centerXAnchor),
+
+            inputField.topAnchor.constraint(equalTo: instructionsLabel.bottomAnchor, constant: 20),
+            inputField.leadingAnchor.constraint(equalTo: parentView.leadingAnchor, constant: 20),
+            inputField.trailingAnchor.constraint(equalTo: parentView.trailingAnchor, constant: -20),
+
+            submitButton.topAnchor.constraint(equalTo: inputField.bottomAnchor, constant: 10),
+            submitButton.centerXAnchor.constraint(equalTo: parentView.centerXAnchor),
+
+            // Plus One Label (floating above input field)
+            plusOneLabel.centerXAnchor.constraint(equalTo: inputField.centerXAnchor),
+            plusOneLabel.bottomAnchor.constraint(equalTo: inputField.topAnchor, constant: -10),
         ])
 
-        return (promptLabel, inputField, submitButton, timerLabel, scoreLabel, feedbackLabel)
+        return (
+            inputField: inputField,
+            submitButton: submitButton,
+            timerLabel: timerLabel,
+            scoreLabel: scoreLabel,
+            feedbackLabel: feedbackLabel,
+            letterDisplayLabel: letterDisplayLabel,
+            timerRingLayer: timerRingLayer,
+            plusOneLabel: plusOneLabel
+        )
     }
 }

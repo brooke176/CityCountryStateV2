@@ -56,7 +56,7 @@ class MessagesViewController: MSMessagesAppViewController {
             battleRoomManager = BattleRoomManager(viewController: self)
             battleRoomManager?.joinRoom(from: url)
         } else {
-            GameManager.shared.handleIncomingMessage(components: components)
+            GameManager.shared.processIncomingMessage(components: components)
         }
     }
     

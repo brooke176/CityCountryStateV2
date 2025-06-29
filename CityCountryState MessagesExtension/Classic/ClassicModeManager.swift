@@ -4,9 +4,9 @@ import Messages
 class ClassicModeManager: NSObject, UITextFieldDelegate {
     weak var viewController: MessagesViewController?
     
-    private var score: Int = 0
+    var score: Int = 0
     private var timeRemaining: TimeInterval = 30
-    private let timeLimit: TimeInterval = 30
+    private let timeLimit: TimeInterval = 60
     private var timer: Timer?
     private var currentLetter: String = ""
     private var usedWords = Set<String>()
@@ -23,6 +23,10 @@ class ClassicModeManager: NSObject, UITextFieldDelegate {
         startTimer()
     }
     
+    func stopGame() {
+        timer?.invalidate()
+    }
+    
     private func showGameUI() {
         guard let view = viewController?.view else { return }
         GameManager.shared.clearUI(in: view)
@@ -32,14 +36,21 @@ class ClassicModeManager: NSObject, UITextFieldDelegate {
             
             self.viewController?.inputField = uiElements.inputField
             self.viewController?.submitButton = uiElements.submitButton
+            self.viewController?.submitButton.addTarget(self, action: #selector(self.submitButtonTapped), for: .touchUpInside)
             self.viewController?.timerLabel = uiElements.timerLabel
             self.viewController?.scoreLabel = uiElements.scoreLabel
             self.viewController?.feedbackLabel = uiElements.feedbackLabel
             self.viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
             self.viewController?.timerRingLayer = uiElements.timerRingLayer
+            self.viewController?.plusOneLabel = uiElements.plusOneLabel
             
             self.updateUI()
         }
+    }
+    
+    @objc private func submitButtonTapped() {
+        guard let inputText = viewController?.inputField.text else { return }
+        handleSubmit(input: inputText)
     }
     
     private func updateUI() {
@@ -90,9 +101,60 @@ class ClassicModeManager: NSObject, UITextFieldDelegate {
     }
     
     private func handleTimeout() {
-        viewController?.inputField.isEnabled = false
-        viewController?.submitButton.isEnabled = false
-        viewController?.feedbackLabel.text = "Time's up!"
+        guard let vc = viewController,
+              let conversation = vc.activeConversation else { return }
+
+        // Build final feedback string with styled summary
+        let endMessage = """
+        Time's up!
+
+        You scored \(score) total:
+
+        📍 Cities: \(usedWords.filter { GameData.allCities.contains($0) }.count)
+        🌐 Countries: \(usedWords.filter { GameData.allCountries.contains($0) }.count)
+        🗺️ States: \(usedWords.filter { GameData.allStates.contains($0) }.count)
+        """
+
+        vc.feedbackLabel.text = endMessage
+        vc.feedbackLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        vc.feedbackLabel.textColor = .label
+        vc.feedbackLabel.textAlignment = .center
+
+        vc.feedbackLabel.alpha = 0
+        UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseOut], animations: {
+            vc.feedbackLabel.alpha = 1
+            vc.feedbackLabel.transform = CGAffineTransform(scaleX: 1.02, y: 1.02)
+        }, completion: { _ in
+            UIView.animate(withDuration: 0.2) {
+                vc.feedbackLabel.transform = .identity
+            }
+        })
+
+        // Draft outgoing MSMessage with classic challenge result
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "mode", value: "classic"),
+            URLQueryItem(name: "score", value: "\(score)")
+        ]
+
+        let layout = MSMessageTemplateLayout()
+        layout.caption = "LET’S PLAY CITY COUNTRY STATE! (CLASSIC MODE)"
+        layout.image = UIImage(named: "newimage")
+
+        let message = MSMessage()
+        message.layout = layout
+        message.url = components.url
+
+        conversation.insert(message) { error in
+            if let error = error {
+                print("Error sending message: \(error.localizedDescription)")
+            } else {
+                print("Classic challenge message sent successfully.")
+            }
+        }
+
+        // Collapse back to home screen
+        GameManager.shared.showHomeScreen(in: vc.view, target: vc)
     }
     
     func handleSubmit(input: String) {
@@ -118,11 +180,11 @@ class ClassicModeManager: NSObject, UITextFieldDelegate {
             usedWords.insert(rawInput)
             score += 1
             GameManager.shared.animatePlusOne()
-            startTimer()
             updateUI()
         } else {
-            vc.feedbackLabel.text = "❌ Not a valid place."
+            vc.feedbackLabel.text = "We don't know this one!"
         }
+        vc.inputField.text = ""
     }
     
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
