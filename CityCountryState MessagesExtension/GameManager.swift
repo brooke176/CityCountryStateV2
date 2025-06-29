@@ -104,6 +104,80 @@ class GameManager: NSObject, UITextFieldDelegate {
         }
     }
     
+    func updatePlayerUI() {
+        guard let vc = viewController,
+              let battleManager = battleManager else { return }
+
+        vc.playerStackView?.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        for player in battleManager.players {
+            let container = UIView()
+            container.backgroundColor = .secondarySystemBackground
+            container.layer.cornerRadius = 8
+            container.layer.borderWidth = player.isActive ? 3 : 1
+            container.layer.borderColor = player.isActive ? UIColor.systemGreen.cgColor : UIColor.lightGray.cgColor
+
+            let nameLabel = UILabel()
+            nameLabel.text = "\(player.name) (\(player.score))"
+            nameLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+            nameLabel.textAlignment = .center
+            nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+            container.addSubview(nameLabel)
+            NSLayoutConstraint.activate([
+                nameLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+                nameLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+            ])
+
+            vc.playerStackView?.addArrangedSubview(container)
+        }
+
+        updatePlayerTurnIndicators(players: battleManager.players)
+    }
+
+    func updatePlayerTurnIndicators(players: [BattleModeManager.Player]) {
+        guard let vc = viewController else { return }
+
+        vc.view.subviews.filter { $0.tag == 999 }.forEach { $0.removeFromSuperview() }
+
+        let stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.spacing = 10
+        stackView.distribution = .fillEqually
+        stackView.tag = 999
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        vc.view.addSubview(stackView)
+
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            stackView.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 10),
+            stackView.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -10),
+            stackView.heightAnchor.constraint(equalToConstant: 60)
+        ])
+
+        for player in players {
+            let container = UIView()
+            container.layer.cornerRadius = 10
+            container.layer.borderWidth = player.isActive ? 3 : 1
+            container.layer.borderColor = player.isActive ? UIColor.systemGreen.cgColor : UIColor.lightGray.cgColor
+            container.backgroundColor = .secondarySystemBackground
+
+            let nameLabel = UILabel()
+            nameLabel.text = "\(player.name) (\(player.score))"
+            nameLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+            nameLabel.textAlignment = .center
+            nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+            container.addSubview(nameLabel)
+            NSLayoutConstraint.activate([
+                nameLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+                nameLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+            ])
+
+            stackView.addArrangedSubview(container)
+        }
+    }
+    
     // MARK: - Game Logic
     func resetGame() {
         state = .idle
@@ -192,7 +266,7 @@ class GameManager: NSObject, UITextFieldDelegate {
             } else {
                 // Handle case where we receive battle message but aren't in battle mode
                 let playerNames = components.queryItems?
-                    .filter { $0.name?.hasPrefix("player") ?? false }
+                    .filter { $0.name.hasPrefix("player") }
                     .compactMap { $0.value }
                 if let names = playerNames, !names.isEmpty {
                     startBattleMode(with: names)
