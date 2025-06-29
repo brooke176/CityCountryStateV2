@@ -187,7 +187,18 @@ class GameManager: NSObject, UITextFieldDelegate {
         }
         
         if modeValue == "battle" {
-            battleManager?.handleIncomingMessage(components: components)
+            if let battleManager = battleManager {
+                battleManager.handleIncomingMessage(components: components)
+            } else {
+                // Handle case where we receive battle message but aren't in battle mode
+                let playerNames = components.queryItems?
+                    .filter { $0.name?.hasPrefix("player") ?? false }
+                    .compactMap { $0.value }
+                if let names = playerNames, !names.isEmpty {
+                    startBattleMode(with: names)
+                    battleManager?.handleIncomingMessage(components: components)
+                }
+            }
         } else {
             if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
                 handleIncomingMessage(opponentScore: opponentScore, components: components)
