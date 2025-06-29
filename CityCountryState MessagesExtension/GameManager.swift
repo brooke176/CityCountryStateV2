@@ -256,7 +256,9 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     func handleIncomingMessage(components: URLComponents) {
         guard let modeValue = components.queryItems?.first(where: { $0.name == "mode" })?.value else {
-            showHomeScreen(in: viewController?.view ?? UIView(), target: viewController as Any)
+            DispatchQueue.main.async {
+                self.showHomeScreen(in: self.viewController?.view ?? UIView(), target: self.viewController as Any)
+            }
             return
         }
         

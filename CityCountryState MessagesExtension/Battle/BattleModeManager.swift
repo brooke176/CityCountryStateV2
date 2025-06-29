@@ -36,6 +36,7 @@ class BattleModeManager {
     
     func handleIncomingMessage(components: URLComponents) {
         guard let messageType = components.queryItems?.first(where: { $0.name == "type" })?.value else {
+            print("Invalid message format")
             return
         }
         

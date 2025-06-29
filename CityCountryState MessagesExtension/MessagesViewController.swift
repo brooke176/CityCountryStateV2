@@ -17,8 +17,36 @@ class MessagesViewController: MSMessagesAppViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // Initialize message port
+        do {
+            try initializeMessagePort()
+        } catch {
+            print("Error initializing message port: \(error)")
+        }
+        
         GameManager.shared.setup(with: self)
         showHomeScreen()
+    }
+    
+    private func initializeMessagePort() throws {
+        var context = CFMessagePortContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
+        
+        guard let messagePort = CFMessagePortCreateLocal(nil, "com.yourdomain.CityCountryState.Messages" as CFString, { (port, messageId, data, info) -> Unmanaged<CFData>? in
+            guard let info = info else { return nil }
+            let viewController = Unmanaged<MessagesViewController>.fromOpaque(info).takeUnretainedValue()
+            return viewController.handleMessage(messageId: messageId, data: data)
+        }, &context, nil) else {
+            throw NSError(domain: "com.yourdomain.CityCountryState", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create message port"])
+        }
+        
+        let runLoopSource = CFMessagePortCreateRunLoopSource(nil, messagePort, 0)
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+    }
+    
+    private func handleMessage(messageId: Int32, data: CFData?) -> Unmanaged<CFData>? {
+        // Handle incoming messages here
+        return nil
     }
     
     func clearModeSpecificUI() {
