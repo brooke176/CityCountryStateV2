@@ -18,8 +18,20 @@ class MessagesViewController: MSMessagesAppViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         print("MessagesViewController viewDidLoad")
+        
+        // Initialize without message port for now
         GameManager.shared.setup(with: self)
         showHomeScreen()
+        
+        // Try to initialize message port in background
+        DispatchQueue.global(qos: .background).async {
+            do {
+                try self.initializeMessagePort()
+                print("Message port initialized successfully")
+            } catch {
+                print("Message port initialization failed: \(error)")
+            }
+        }
     }
     
     func clearModeSpecificUI() {
@@ -29,9 +41,18 @@ class MessagesViewController: MSMessagesAppViewController {
     override func willBecomeActive(with conversation: MSConversation) {
         super.willBecomeActive(with: conversation)
         print("willBecomeActive with conversation: \(conversation)")
+        print("Local participant: \(conversation.localParticipantIdentifier)")
+        print("Remote participants: \(conversation.remoteParticipantIdentifiers)")
         
-        guard let url = conversation.selectedMessage?.url else {
-            print("No message URL found - showing home screen")
+        guard let selectedMessage = conversation.selectedMessage else {
+            print("No selected message - showing home screen")
+            showHomeScreen()
+            return
+        }
+        
+        print("Selected message: \(selectedMessage)")
+        guard let url = selectedMessage.url else {
+            print("Message has no URL - showing home screen")
             showHomeScreen()
             return
         }
