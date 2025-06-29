@@ -30,7 +30,11 @@ class MessagesViewController: MSMessagesAppViewController {
             return
         }
         
-        GameManager.shared.handleIncomingMessage(opponentScore: <#T##Int#>: components)
+        if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
+            GameManager.shared.handleIncomingMessage(opponentScore: opponentScore, components: components)
+        } else {
+            GameManager.shared.handleIncomingMessage(components: components)
+        }
     }
     
     func showHomeScreen() {
