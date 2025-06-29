@@ -18,26 +18,39 @@ class MessagesViewController: MSMessagesAppViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // Initialize message port
-        do {
-            try initializeMessagePort()
-        } catch {
-            print("Error initializing message port: \(error)")
-        }
+        // Initialize message port (not critical if it fails)
+        try? initializeMessagePort()
         
         GameManager.shared.setup(with: self)
         showHomeScreen()
     }
     
     private func initializeMessagePort() throws {
-        var context = CFMessagePortContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
+        // Use app group container for message port
+        let appGroup = "group.com.yourdomain.CityCountryState"
+        let portName = "\(appGroup).MessagesPort"
         
-        guard let messagePort = CFMessagePortCreateLocal(nil, "com.yourdomain.CityCountryState.Messages" as CFString, { (port, messageId, data, info) -> Unmanaged<CFData>? in
-            guard let info = info else { return nil }
-            let viewController = Unmanaged<MessagesViewController>.fromOpaque(info).takeUnretainedValue()
-            return viewController.handleMessage(messageId: messageId, data: data)
-        }, &context, nil) else {
-            throw NSError(domain: "com.yourdomain.CityCountryState", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create message port"])
+        var context = CFMessagePortContext(
+            version: 0,
+            info: Unmanaged.passUnretained(self).toOpaque(),
+            retain: nil,
+            release: nil,
+            copyDescription: nil
+        )
+        
+        guard let messagePort = CFMessagePortCreateLocal(
+            nil,
+            portName as CFString,
+            { (port, messageId, data, info) -> Unmanaged<CFData>? in
+                guard let info = info else { return nil }
+                let viewController = Unmanaged<MessagesViewController>.fromOpaque(info).takeUnretainedValue()
+                return viewController.handleMessage(messageId: messageId, data: data)
+            },
+            &context,
+            nil
+        ) else {
+            print("Warning: Could not create message port - continuing without it")
+            return
         }
         
         let runLoopSource = CFMessagePortCreateRunLoopSource(nil, messagePort, 0)
