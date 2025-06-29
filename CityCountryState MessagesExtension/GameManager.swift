@@ -64,19 +64,33 @@ class GameManager: NSObject, UITextFieldDelegate {
         guard let view = viewController?.view else { return }
         clearUI(in: view)
         let uiElements = GameUIHelper.buildGameUI(in: view, delegate: self)
-        viewController?.configureUIElements(uiElements)
+        
+        // Safely configure UI elements
+        if let vc = viewController {
+            vc.inputField = uiElements.inputField
+            vc.submitButton = uiElements.submitButton
+            vc.timerLabel = uiElements.timerLabel
+            vc.scoreLabel = uiElements.scoreLabel
+            vc.feedbackLabel = uiElements.feedbackLabel
+            vc.letterDisplayLabel = uiElements.letterDisplayLabel
+            vc.timerRingLayer = uiElements.timerRingLayer
+        }
+        
         updateUI()
     }
     
     private func updateUI() {
-        guard let vc = viewController else { return }
+        guard let vc = viewController,
+              let timerLabel = vc.timerLabel,
+              let scoreLabel = vc.scoreLabel,
+              let timerRingLayer = vc.timerRingLayer else { return }
         
         switch state {
         case .classic(let score, let timeRemaining, _):
             GameUIHelper.updateLabels(
-                timerLabel: vc.timerLabel,
-                scoreLabel: vc.scoreLabel,
-                timerRingLayer: vc.timerRingLayer,
+                timerLabel: timerLabel,
+                scoreLabel: scoreLabel,
+                timerRingLayer: timerRingLayer,
                 timeRemaining: timeRemaining,
                 timeLimit: timeLimit,
                 score: score

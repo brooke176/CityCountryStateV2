@@ -5,6 +5,16 @@ class MessagesViewController: MSMessagesAppViewController {
     var gameManager: GameManager?
     var battleRoomManager: BattleRoomManager?
     
+    // UI Elements
+    var timerLabel: UILabel!
+    var scoreLabel: UILabel!
+    var feedbackLabel: UILabel!
+    var inputField: UITextField!
+    var submitButton: UIButton!
+    var letterDisplayLabel: UILabel!
+    var timerRingLayer: CAShapeLayer!
+    var playerStackView: UIStackView!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         GameManager.shared.setup(with: self)
@@ -34,6 +44,25 @@ class MessagesViewController: MSMessagesAppViewController {
     
     func showHomeScreen() {
         gameManager?.showHomeScreen(in: view, target: self)
+    }
+    
+    func configureUIElements(_ elements: (
+        inputField: UITextField,
+        submitButton: UIButton,
+        timerLabel: UILabel,
+        scoreLabel: UILabel,
+        feedbackLabel: UILabel,
+        letterDisplayLabel: UILabel,
+        timerRingLayer: CAShapeLayer,
+        plusOneLabel: UILabel
+    )) {
+        inputField = elements.inputField
+        submitButton = elements.submitButton
+        timerLabel = elements.timerLabel
+        scoreLabel = elements.scoreLabel
+        feedbackLabel = elements.feedbackLabel
+        letterDisplayLabel = elements.letterDisplayLabel
+        timerRingLayer = elements.timerRingLayer
     }
     
     @objc func startClassicMode() {
