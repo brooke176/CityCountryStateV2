@@ -2,9 +2,7 @@ import UIKit
 import Messages
 
 class MessagesViewController: MSMessagesAppViewController {
-    var gameManager: GameManager?
     var battleRoomManager: BattleRoomManager?
-    
     // UI Elements
     var timerLabel: UILabel!
     var scoreLabel: UILabel!
@@ -14,18 +12,18 @@ class MessagesViewController: MSMessagesAppViewController {
     var letterDisplayLabel: UILabel!
     var timerRingLayer: CAShapeLayer!
     var playerStackView: UIStackView!
+    var plusOneLabel: UILabel!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         print("MessagesViewController viewDidLoad")
-        
-        // Setup game manager and show home screen
         GameManager.shared.setup(with: self)
-        showHomeScreen()
+        self.submitButton?.addTarget(GameManager.shared, action: #selector(GameManager.handleSubmitButtonTapped), for: .touchUpInside)
+        GameManager.shared.showHomeScreen(in: view, target: self)
     }
     
     func clearModeSpecificUI() {
-        gameManager?.clearUI(in: view)
+        GameManager.shared.clearUI(in: view)
     }
     
     override func willBecomeActive(with conversation: MSConversation) {
@@ -36,21 +34,21 @@ class MessagesViewController: MSMessagesAppViewController {
         
         guard let selectedMessage = conversation.selectedMessage else {
             print("No selected message - showing home screen")
-            showHomeScreen()
+            GameManager.shared.showHomeScreen(in: view, target: self)
             return
         }
         
         print("Selected message: \(selectedMessage)")
         guard let url = selectedMessage.url else {
             print("Message has no URL - showing home screen")
-            showHomeScreen()
+            GameManager.shared.showHomeScreen(in: view, target: self)
             return
         }
         
         print("Message URL: \(url)")
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             print("Failed to parse URL components - showing home screen")
-            showHomeScreen()
+            GameManager.shared.showHomeScreen(in: view, target: self)
             return
         }
         
@@ -60,10 +58,6 @@ class MessagesViewController: MSMessagesAppViewController {
         } else {
             GameManager.shared.handleIncomingMessage(components: components)
         }
-    }
-    
-    func showHomeScreen() {
-        gameManager?.showHomeScreen(in: view, target: self)
     }
     
     func configureUIElements(_ elements: (
@@ -77,7 +71,7 @@ class MessagesViewController: MSMessagesAppViewController {
         plusOneLabel: UILabel
     )) {
         inputField = elements.inputField
-        submitButton = elements.submitButton
+        self.submitButton = elements.submitButton
         timerLabel = elements.timerLabel
         scoreLabel = elements.scoreLabel
         feedbackLabel = elements.feedbackLabel

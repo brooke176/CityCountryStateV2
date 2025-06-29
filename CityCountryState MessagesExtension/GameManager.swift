@@ -3,7 +3,8 @@ import Messages
 
 class GameManager: NSObject, UITextFieldDelegate {
     static let shared = GameManager()
-    
+    var usedWords = Set<String>()
+
     weak var viewController: MessagesViewController?
     enum GameState {
         case idle
@@ -19,6 +20,7 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     private let timeLimit: TimeInterval = 30
     private var timer: Timer?
+    private var classicManager: ClassicModeManager?
     
     private var currentLetter: String {
         switch state {
@@ -63,6 +65,7 @@ class GameManager: NSObject, UITextFieldDelegate {
                 classicSelector: #selector(MessagesViewController.startClassicMode),
                 battleSelector: #selector(MessagesViewController.sendBattleInviteMessage)
             )
+            self.viewController?.letterDisplayLabel?.text = ""  // Clear letter label in case it was showing from a previous game
         }
     }
     
@@ -84,6 +87,8 @@ class GameManager: NSObject, UITextFieldDelegate {
             self.viewController?.feedbackLabel = uiElements.feedbackLabel
             self.viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
             self.viewController?.timerRingLayer = uiElements.timerRingLayer
+
+            self.viewController?.submitButton?.addTarget(self, action: #selector(self.handleSubmitButtonTapped), for: .touchUpInside)
             
             self.updateUI()
         }
@@ -105,6 +110,7 @@ class GameManager: NSObject, UITextFieldDelegate {
                 timeLimit: timeLimit,
                 score: score
             )
+            vc.letterDisplayLabel?.text = currentLetter
             
         case .battle(let battleManager):
             battleManager.updateUI()
@@ -192,6 +198,9 @@ class GameManager: NSObject, UITextFieldDelegate {
     func resetGame() {
         state = .idle
         timer?.invalidate()
+        classicManager?.stopGame()
+        battleManager?.stopBattle()
+        classicManager = nil
     }
     
     private func generateRandomLetter() -> String {
@@ -237,13 +246,9 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     // MARK: - Mode Management
     func startClassicMode() {
-        state = .classic(
-            score: 0,
-            timeRemaining: timeLimit,
-            currentLetter: generateRandomLetter()
-        )
-        showGameUI()
-        startTimer()
+        guard let vc = viewController else { return }
+        classicManager = ClassicModeManager(viewController: vc)
+        classicManager?.startGame()
     }
     
     func startBattleMode(with playerNames: [String]) {
@@ -300,5 +305,133 @@ class GameManager: NSObject, UITextFieldDelegate {
             p1: score,
             p2: opponentScore
         )
+    }
+    
+    func animatePlusOne() {
+        guard let plusOneLabel = viewController?.plusOneLabel else { return }
+
+        plusOneLabel.alpha = 1
+        plusOneLabel.transform = CGAffineTransform(scaleX: 1.5, y: 1.5)
+
+        UIView.animate(withDuration: 0.6, delay: 0, options: [.curveEaseOut], animations: {
+            plusOneLabel.alpha = 0
+            plusOneLabel.transform = CGAffineTransform(translationX: 0, y: -30)
+        }, completion: { _ in
+            plusOneLabel.transform = .identity
+        })
+    }
+    
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        handleSubmitButtonTapped()
+        return true
+    }
+    
+    // MARK: - Submit Handling
+    @objc func handleSubmitButtonTapped() {
+        guard let input = viewController?.inputField?.text else { return }
+        if let classic = classicManager {
+            classic.handleSubmit(input: input)
+        } else if let battle = battleManager {
+            battle.handleSubmit(input: input)
+        }
+    }
+}
+
+class ClassicModeManager {
+    weak var viewController: MessagesViewController?
+    var score = 0
+    var currentLetter: String = ""
+    var timeRemaining: TimeInterval = 30
+    private let timeLimit: TimeInterval = 30
+    private var timer: Timer?
+    var usedWords = Set<String>()
+
+    init(viewController: MessagesViewController) {
+        self.viewController = viewController
+    }
+
+    func startGame() {
+        score = 0
+        usedWords.removeAll()
+        currentLetter = generateRandomLetter()
+        timeRemaining = timeLimit
+        setupUI()
+        startTimer()
+    }
+
+    private func generateRandomLetter() -> String {
+        let allowedLetters = "ABCDEFGHIJKLMNOPRSTUVWZ"
+        return String(allowedLetters.randomElement()!)
+    }
+
+    private func setupUI() {
+        guard let vc = viewController else { return }
+        vc.clearModeSpecificUI()
+//        vc.setupClassicModeUI()
+        vc.letterDisplayLabel?.text = currentLetter
+    }
+
+    private func startTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(timerTick), userInfo: nil, repeats: true)
+    }
+
+    @objc private func timerTick() {
+        timeRemaining -= 1
+        guard let vc = viewController else { return }
+        GameUIHelper.updateLabels(
+            timerLabel: vc.timerLabel,
+            scoreLabel: vc.scoreLabel,
+            timerRingLayer: vc.timerRingLayer,
+            timeRemaining: timeRemaining,
+            timeLimit: timeLimit,
+            score: score
+        )
+        if timeRemaining <= 0 {
+            timer?.invalidate()
+            handleTimeout()
+        }
+    }
+
+    private func handleTimeout() {
+        guard let vc = viewController else { return }
+        vc.inputField.isEnabled = false
+        vc.submitButton.isEnabled = false
+        vc.feedbackLabel.text = "Time's up!"
+    }
+
+    func handleSubmit(input: String) {
+        guard let vc = viewController else { return }
+        let rawInput = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if rawInput.isEmpty {
+            vc.feedbackLabel.text = "Please enter a word."
+            return
+        }
+
+        if !rawInput.hasPrefix(currentLetter.lowercased()) {
+            vc.feedbackLabel.text = "Hmm... doesn’t start with \(currentLetter)"
+            return
+        }
+
+        if usedWords.contains(rawInput) {
+            vc.feedbackLabel.text = "That word was already used."
+            return
+        }
+
+        if GameData.allCities.contains(rawInput) || GameData.allCountries.contains(rawInput) || GameData.allStates.contains(rawInput) {
+            usedWords.insert(rawInput)
+            score += 1
+            vc.feedbackLabel.text = "✅ Correct!"
+            GameManager.shared.animatePlusOne()
+            timeRemaining = timeLimit
+            startTimer()
+        } else {
+            vc.feedbackLabel.text = "❌ Not a valid place."
+        }
+    }
+
+    func stopGame() {
+        timer?.invalidate()
     }
 }

@@ -14,12 +14,12 @@ class BattleModeManager {
     var turnTimer: Timer?
     var timeRemaining: TimeInterval = 30
     var currentLetter: String
-    private var usedWords = Set<String>()
-    private var correctCities = 0
-    private var correctCountries = 0
-    private var correctStates = 0
+    var usedWords = Set<String>()
+    var correctCities = 0
+    var correctCountries = 0
+    var correctStates = 0
     
-    private let timeLimit: TimeInterval = 30
+    let timeLimit: TimeInterval = 30
     
     init(viewController: MessagesViewController?, playerNames: [String]) {
         self.viewController = viewController
@@ -83,11 +83,11 @@ class BattleModeManager {
         viewController?.letterDisplayLabel.text = currentLetter
     }
     
-    private func updatePlayerUI() {
+    func updatePlayerUI() {
         // Existing player UI update logic
     }
     
-    private func startNewTurn() {
+    func startNewTurn() {
         for index in players.indices {
             players[index].isActive = (index == activePlayerIndex)
         }
