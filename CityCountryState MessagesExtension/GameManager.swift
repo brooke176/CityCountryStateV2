@@ -54,32 +54,39 @@ class GameManager: NSObject, UITextFieldDelegate {
     func showHomeScreen(in view: UIView, target: Any) {
         print("Showing home screen")
         clearUI(in: view)
-        print("Building home screen UI")
-        GameUIHelper.buildHomeScreen(
-            in: view,
-            target: target,
-            classicSelector: #selector(MessagesViewController.startClassicMode),
-            battleSelector: #selector(MessagesViewController.sendBattleInviteMessage)
-        )
+        
+        DispatchQueue.main.async {
+            print("Building home screen UI")
+            GameUIHelper.buildHomeScreen(
+                in: view,
+                target: target,
+                classicSelector: #selector(MessagesViewController.startClassicMode),
+                battleSelector: #selector(MessagesViewController.sendBattleInviteMessage)
+            )
+        }
     }
     
     private func showGameUI() {
-        guard let view = viewController?.view else { return }
-        clearUI(in: view)
-        let uiElements = GameUIHelper.buildGameUI(in: view, delegate: self)
-        
-        // Safely configure UI elements
-        if let vc = viewController {
-            vc.inputField = uiElements.inputField
-            vc.submitButton = uiElements.submitButton
-            vc.timerLabel = uiElements.timerLabel
-            vc.scoreLabel = uiElements.scoreLabel
-            vc.feedbackLabel = uiElements.feedbackLabel
-            vc.letterDisplayLabel = uiElements.letterDisplayLabel
-            vc.timerRingLayer = uiElements.timerRingLayer
+        guard let view = viewController?.view else {
+            print("Error: No view controller view available")
+            return
         }
         
-        updateUI()
+        clearUI(in: view)
+        
+        DispatchQueue.main.async {
+            let uiElements = GameUIHelper.buildGameUI(in: view, delegate: self)
+            
+            self.viewController?.inputField = uiElements.inputField
+            self.viewController?.submitButton = uiElements.submitButton
+            self.viewController?.timerLabel = uiElements.timerLabel
+            self.viewController?.scoreLabel = uiElements.scoreLabel
+            self.viewController?.feedbackLabel = uiElements.feedbackLabel
+            self.viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
+            self.viewController?.timerRingLayer = uiElements.timerRingLayer
+            
+            self.updateUI()
+        }
     }
     
     private func updateUI() {
