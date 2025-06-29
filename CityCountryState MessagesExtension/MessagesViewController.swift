@@ -24,14 +24,10 @@ class MessagesViewController: MSMessagesAppViewController {
             return
         }
         
+        // Delegate message handling to appropriate manager
         if components.queryItems?.contains(where: { $0.name == "mode" && $0.value == "battle" }) == true {
             battleRoomManager = BattleRoomManager(viewController: self)
-            battleRoomManager?.joinRoom(from: conversation.selectedMessage?.url)
-            return
-        }
-        
-        if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
-            GameManager.shared.handleIncomingMessage(opponentScore: opponentScore, components: components)
+            battleRoomManager?.joinRoom(from: url)
         } else {
             GameManager.shared.handleIncomingMessage(components: components)
         }
@@ -43,27 +39,12 @@ class MessagesViewController: MSMessagesAppViewController {
     
     @objc private func startClassicMode() {
         GameManager.shared.startClassicMode()
-        GameManager.shared.resetGame()
     }
     
     @objc private func sendBattleInviteMessage() {
         guard let conversation = activeConversation else { return }
-        
-        var components = URLComponents()
-        components.queryItems = [
-            URLQueryItem(name: "mode", value: "battle"),
-            URLQueryItem(name: "readyCount", value: "1"),
-            URLQueryItem(name: "playerReady", value: "false")
-        ]
-
-        let layout = MSMessageTemplateLayout()
-        layout.caption = "Join the Battle Waiting Room!"
-        
-        let message = MSMessage()
-        message.layout = layout
-        message.url = components.url
-        
-        conversation.insert(message, completionHandler: nil)
+        battleRoomManager = BattleRoomManager(viewController: self)
+        battleRoomManager?.sendInviteMessage(in: conversation)
     }
     
     func startBattleMode(with playerNames: [String]) {
