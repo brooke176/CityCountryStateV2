@@ -5,15 +5,34 @@ class GameManager: NSObject, UITextFieldDelegate {
     static let shared = GameManager()
     
     weak var viewController: MessagesViewController?
-    var selectedGameMode: GameMode = .classic
-    private var battleManager: BattleModeManager?
+    enum GameState {
+        case idle
+        case classic(score: Int, timeRemaining: TimeInterval, currentLetter: String)
+        case battle(BattleModeManager)
+    }
     
-    // Game state
-    private var currentLetter: String = ""
-    private var score: Int = 0
-    private var timeRemaining: TimeInterval = 30
+    private var state: GameState = .idle {
+        didSet {
+            updateUI()
+        }
+    }
+    
     private let timeLimit: TimeInterval = 30
     private var timer: Timer?
+    
+    private var currentLetter: String {
+        switch state {
+        case .classic(_, _, let letter): return letter
+        default: return ""
+        }
+    }
+    
+    private var score: Int {
+        switch state {
+        case .classic(let score, _, _): return score
+        default: return 0
+        }
+    }
     
     private override init() {
         super.init()
@@ -51,21 +70,29 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     private func updateUI() {
         guard let vc = viewController else { return }
-        GameUIHelper.updateLabels(
-            timerLabel: vc.timerLabel,
-            scoreLabel: vc.scoreLabel,
-            timerRingLayer: vc.timerRingLayer,
-            timeRemaining: timeRemaining,
-            timeLimit: timeLimit,
-            score: score
-        )
+        
+        switch state {
+        case .classic(let score, let timeRemaining, _):
+            GameUIHelper.updateLabels(
+                timerLabel: vc.timerLabel,
+                scoreLabel: vc.scoreLabel,
+                timerRingLayer: vc.timerRingLayer,
+                timeRemaining: timeRemaining,
+                timeLimit: timeLimit,
+                score: score
+            )
+            
+        case .battle(let battleManager):
+            battleManager.updateUI()
+            
+        case .idle:
+            break
+        }
     }
     
     // MARK: - Game Logic
     func resetGame() {
-        score = 0
-        timeRemaining = timeLimit
-        currentLetter = generateRandomLetter()
+        state = .idle
         timer?.invalidate()
     }
     
@@ -86,12 +113,21 @@ class GameManager: NSObject, UITextFieldDelegate {
     }
     
     @objc private func timerTick() {
-        timeRemaining -= 1
-        updateUI()
+        guard case .classic(let score, let timeRemaining, let letter) = state else {
+            timer?.invalidate()
+            return
+        }
         
-        if timeRemaining <= 0 {
+        let newTime = timeRemaining - 1
+        if newTime <= 0 {
             timer?.invalidate()
             handleTimeout()
+        } else {
+            state = .classic(
+                score: score,
+                timeRemaining: newTime,
+                currentLetter: letter
+            )
         }
     }
     
@@ -103,15 +139,22 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     // MARK: - Mode Management
     func startClassicMode() {
-        selectedGameMode = .classic
+        state = .classic(
+            score: 0,
+            timeRemaining: timeLimit,
+            currentLetter: generateRandomLetter()
+        )
         showGameUI()
         startTimer()
     }
     
     func startBattleMode(with playerNames: [String]) {
-        selectedGameMode = .battle
-        battleManager = BattleModeManager(viewController: viewController, playerNames: playerNames)
-        battleManager?.setupUI()
+        let battleManager = BattleModeManager(
+            viewController: viewController,
+            playerNames: playerNames
+        )
+        state = .battle(battleManager)
+        battleManager.setupUI()
         showGameUI()
     }
     
