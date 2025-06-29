@@ -4,15 +4,6 @@ import Messages
 class MessagesViewController: MSMessagesAppViewController {
     private var gameManager: GameManager?
     private var battleRoomManager: BattleRoomManager?
-    var inputField: UITextField!
-    var submitButton: UIButton!
-    var timerLabel: UILabel!
-    var scoreLabel: UILabel!
-    var feedbackLabel: UILabel!
-    var letterDisplayLabel: UILabel!
-    var timerRingLayer: CAShapeLayer!
-    var plusOneLabel: UILabel!
-    var playerStackView: UIStackView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -21,12 +12,7 @@ class MessagesViewController: MSMessagesAppViewController {
     }
     
     func clearModeSpecificUI() {
-        for subview in view.subviews {
-            if subview != playerStackView {
-                subview.removeFromSuperview()
-            }
-        }
-        view.layer.sublayers?.removeAll(where: { $0 is CAShapeLayer })
+        gameManager?.clearUI(in: view)
     }
     
     override func willBecomeActive(with conversation: MSConversation) {
@@ -48,12 +34,7 @@ class MessagesViewController: MSMessagesAppViewController {
     }
     
     func showHomeScreen() {
-        GameUIHelper.buildHomeScreen(
-            in: view,
-            target: self,
-            classicSelector: #selector(startClassicMode),
-            battleSelector: #selector(sendBattleInviteMessage)
-        )
+        gameManager?.showHomeScreen(in: view, target: self)
     }
     
     @objc private func startClassicMode() {
