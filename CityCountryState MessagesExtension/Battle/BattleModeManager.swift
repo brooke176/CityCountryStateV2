@@ -211,3 +211,99 @@ class BattleModeManager {
         turnTimer?.invalidate()
     }
 }
+import UIKit
+import Messages
+
+class BattleModeManager {
+    struct Player {
+        var name: String
+        var score: Int
+        var isActive: Bool
+    }
+
+    weak var viewController: MessagesViewController?
+    var players: [Player] = []
+    var activePlayerIndex = 0
+    var turnTimer: Timer?
+    var timeRemaining: TimeInterval = 30
+    var currentLetter: String
+    private var usedWords = Set<String>()
+    private var correctCities = 0
+    private var correctCountries = 0
+    private var correctStates = 0
+    
+    private let timeLimit: TimeInterval = 30
+
+    init(viewController: MessagesViewController?, playerNames: [String]) {
+        self.viewController = viewController
+        self.players = playerNames.map { Player(name: $0, score: 0, isActive: false) }
+        let allowedLetters = "ABCDEFGHIJKLMNOPRSTUVWZ"
+        currentLetter = String(allowedLetters.randomElement()!)
+    }
+
+    func setupUI() {
+        updateLetterDisplay()
+        updatePlayerUI()
+        startNewTurn()
+    }
+
+    func handleIncomingMessage(components: URLComponents) {
+        guard let messageType = components.queryItems?.first(where: { $0.name == "type" })?.value else {
+            return
+        }
+        
+        switch messageType {
+        case "guess":
+            if let guess = components.queryItems?.first(where: { $0.name == "guess" })?.value,
+               let playerIndexStr = components.queryItems?.first(where: { $0.name == "playerIndex" })?.value,
+               let playerIndex = Int(playerIndexStr) {
+                handleIncomingGuess(guess, from: playerIndex)
+            }
+            
+        case "turnUpdate":
+            if let activeIndexStr = components.queryItems?.first(where: { $0.name == "activePlayerIndex" })?.value,
+               let activeIndex = Int(activeIndexStr) {
+                activePlayerIndex = activeIndex
+                startNewTurn()
+            }
+            
+        case "scoreUpdate":
+            if let playerIndexStr = components.queryItems?.first(where: { $0.name == "playerIndex" })?.value,
+               let playerIndex = Int(playerIndexStr),
+               let scoreStr = components.queryItems?.first(where: { $0.name == "score" })?.value,
+               let score = Int(scoreStr),
+               playerIndex < players.count {
+                players[playerIndex].score = score
+                updateUI()
+            }
+            
+        default:
+            break
+        }
+    }
+
+    private func handleIncomingGuess(_ guess: String, from playerIndex: Int) {
+        guard playerIndex == activePlayerIndex else { return }
+        handleSubmit(input: guess)
+    }
+
+    private func updateLetterDisplay() {
+        viewController?.letterDisplayLabel.text = currentLetter
+    }
+
+    private func updatePlayerUI() {
+        // Existing player UI update logic
+    }
+
+    private func startNewTurn() {
+        // Existing turn start logic
+    }
+
+    private func handleSubmit(input: String) {
+        // Existing submit handling logic
+    }
+
+    private func updateUI() {
+        // Existing UI update logic
+    }
+}
