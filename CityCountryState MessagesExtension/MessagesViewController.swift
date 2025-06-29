@@ -43,6 +43,7 @@ class MessagesViewController: MSMessagesAppViewController {
     
     @objc private func startClassicMode() {
         GameManager.shared.startClassicMode()
+        GameManager.shared.resetGame()
     }
     
     @objc private func sendBattleInviteMessage() {
