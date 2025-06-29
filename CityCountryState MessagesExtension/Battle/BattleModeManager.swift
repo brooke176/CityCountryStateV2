@@ -29,9 +29,13 @@ class BattleModeManager {
     }
     
     func setupUI() {
+        print("BattleModeManager setting up UI")
         updateLetterDisplay()
+        print("Updated letter display")
         updatePlayerUI()
+        print("Updated player UI")
         startNewTurn()
+        print("Started new turn")
     }
     
     func handleIncomingMessage(components: URLComponents) {

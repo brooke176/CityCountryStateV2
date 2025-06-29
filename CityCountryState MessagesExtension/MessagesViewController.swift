@@ -17,6 +17,7 @@ class MessagesViewController: MSMessagesAppViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        print("MessagesViewController viewDidLoad")
         GameManager.shared.setup(with: self)
         showHomeScreen()
     }
@@ -27,9 +28,17 @@ class MessagesViewController: MSMessagesAppViewController {
     
     override func willBecomeActive(with conversation: MSConversation) {
         super.willBecomeActive(with: conversation)
+        print("willBecomeActive with conversation: \(conversation)")
         
-        guard let url = conversation.selectedMessage?.url,
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+        guard let url = conversation.selectedMessage?.url else {
+            print("No message URL found - showing home screen")
+            showHomeScreen()
+            return
+        }
+        
+        print("Message URL: \(url)")
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            print("Failed to parse URL components - showing home screen")
             showHomeScreen()
             return
         }

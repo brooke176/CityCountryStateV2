@@ -21,11 +21,26 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     }
     
     func joinRoom(from url: URL?) {
+        print("Attempting to join room")
         players = []
         
-        guard let url = url,
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let queryItems = components.queryItems else {
+        guard let url = url else {
+            print("No URL provided - creating new room")
+            players.append(Player(id: localPlayerID, name: "You", isReady: false))
+            showWaitingRoom()
+            return
+        }
+        
+        print("Joining room with URL: \(url)")
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            print("Failed to create URLComponents from URL")
+            players.append(Player(id: localPlayerID, name: "You", isReady: false))
+            showWaitingRoom()
+            return
+        }
+        
+        guard let queryItems = components.queryItems else {
+            print("No query items found in URL")
             players.append(Player(id: localPlayerID, name: "You", isReady: false))
             showWaitingRoom()
             return

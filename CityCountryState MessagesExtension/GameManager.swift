@@ -40,6 +40,7 @@ class GameManager: NSObject, UITextFieldDelegate {
     }
     
     func setup(with viewController: MessagesViewController) {
+        print("GameManager setup with viewController")
         self.viewController = viewController
         resetGame()
     }
@@ -51,7 +52,9 @@ class GameManager: NSObject, UITextFieldDelegate {
     }
     
     func showHomeScreen(in view: UIView, target: Any) {
+        print("Showing home screen")
         clearUI(in: view)
+        print("Building home screen UI")
         GameUIHelper.buildHomeScreen(
             in: view,
             target: target,
