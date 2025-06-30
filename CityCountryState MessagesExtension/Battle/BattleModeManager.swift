@@ -101,45 +101,61 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
             print("BattleModeManager: viewController is nil in startNewTurn")
             return
         }
-        vc.letterDisplayLabel?.text = currentLetter
-        print("vc.letterDisplayLabel?.text", vc.letterDisplayLabel?.text ?? "nil")
-
-        for index in players.indices {
-            players[index].isActive = (index == activePlayerIndex)
-        }
-        print("players", players)
-
+        
+        // Reset turn state
         timeRemaining = timeLimit
         vc.inputField.text = ""
         vc.inputField.isEnabled = true
         vc.submitButton.isEnabled = true
-        updateUI()
         
-        turnTimer?.invalidate()
-        turnTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.timerTick()
+        // Update player states
+        for index in players.indices {
+            players[index].isActive = (index == activePlayerIndex)
         }
         
-        vc.feedbackLabel.text = "\(players[activePlayerIndex].name)'s Turn"
-        GameManager.shared.updatePlayerUI()
+        // Update UI
+        DispatchQueue.main.async {
+            vc.letterDisplayLabel?.text = self.currentLetter
+            vc.feedbackLabel.text = "\(self.players[self.activePlayerIndex].name)'s Turn"
+            self.updateUI()
+            
+            // Start new timer
+            self.turnTimer?.invalidate()
+            self.turnTimer = Timer.scheduledTimer(
+                withTimeInterval: 1, 
+                repeats: true
+            ) { [weak self] _ in
+                self?.timerTick()
+            }
+        }
     }
     
     private func timerTick() {
         timeRemaining -= 1
         
-        DispatchQueue.main.async {
-            guard let vc = self.viewController else { return }
+        // Update UI on main thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, 
+                  let vc = self.viewController,
+                  let timerRingLayer = vc.timerRingLayer else {
+                return
+            }
             
-            // Safely update timer ring layer
+            // Update timer ring
             let progress = CGFloat(self.timeRemaining / self.timeLimit)
-            vc.timerRingLayer?.strokeEnd = progress
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            timerRingLayer.strokeEnd = progress
+            CATransaction.commit()
             
-            // Update other UI elements
+            // Update labels
             vc.timerLabel?.text = "\(Int(self.timeRemaining))"
             vc.scoreLabel?.text = "Score: \(self.players[self.activePlayerIndex].score)"
             
+            // Handle timeout
             if self.timeRemaining <= 0 {
                 self.turnTimer?.invalidate()
+                self.turnTimer = nil
                 self.handlePlayerTimeout()
             }
         }
@@ -248,55 +264,64 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     func setupUI() {
-        guard let view = viewController?.view else { return }
+        guard let view = viewController?.view else {
+            print("BattleModeManager: No view available for setupUI")
+            return
+        }
+        
+        // Clear UI first
         GameManager.shared.clearUI(in: view)
         
-        DispatchQueue.main.async {
-            let uiElements = GameUIHelper.buildGameUI(in: view, delegate: self)
-            
-            self.viewController?.inputField = uiElements.inputField
-            self.viewController?.submitButton = uiElements.submitButton
-            self.viewController?.timerLabel = uiElements.timerLabel
-            self.viewController?.scoreLabel = uiElements.scoreLabel
-            self.viewController?.feedbackLabel = uiElements.feedbackLabel
-            self.viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
-            
-            // Initialize timer ring layer properly
-            let timerRingContainer = UIView()
-            timerRingContainer.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(timerRingContainer)
-            
-            let ringDiameter: CGFloat = 60
-            let ringPath = UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: ringDiameter, height: ringDiameter))
-            
-            let backgroundRingLayer = CAShapeLayer()
-            backgroundRingLayer.path = ringPath.cgPath
-            backgroundRingLayer.strokeColor = UIColor.lightGray.cgColor
-            backgroundRingLayer.lineWidth = 5
-            backgroundRingLayer.fillColor = UIColor.clear.cgColor
-            
-            let timerRingLayer = CAShapeLayer()
-            timerRingLayer.path = ringPath.cgPath
-            timerRingLayer.strokeColor = UIColor.systemBlue.cgColor
-            timerRingLayer.lineWidth = 5
-            timerRingLayer.fillColor = UIColor.clear.cgColor
-            timerRingLayer.strokeEnd = 1.0
-            
-            timerRingContainer.layer.addSublayer(backgroundRingLayer)
-            timerRingContainer.layer.addSublayer(timerRingLayer)
-            
-            self.viewController?.timerRingLayer = timerRingLayer
-            
-            // Add constraints
-            NSLayoutConstraint.activate([
-                timerRingContainer.centerXAnchor.constraint(equalTo: uiElements.timerLabel.centerXAnchor),
-                timerRingContainer.centerYAnchor.constraint(equalTo: uiElements.timerLabel.centerYAnchor),
-                timerRingContainer.widthAnchor.constraint(equalToConstant: ringDiameter),
-                timerRingContainer.heightAnchor.constraint(equalToConstant: ringDiameter)
-            ])
-            
-            self.startNewTurn()
-        }
+        // Build base UI
+        let uiElements = GameUIHelper.buildGameUI(in: view, delegate: self)
+        
+        // Configure view controller references
+        viewController?.inputField = uiElements.inputField
+        viewController?.submitButton = uiElements.submitButton
+        viewController?.timerLabel = uiElements.timerLabel
+        viewController?.scoreLabel = uiElements.scoreLabel
+        viewController?.feedbackLabel = uiElements.feedbackLabel
+        viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
+        
+        // Setup timer ring
+        setupTimerRing(in: view, timerLabel: uiElements.timerLabel)
+        
+        // Start first turn
+        startNewTurn()
+    }
+    
+    private func setupTimerRing(in view: UIView, timerLabel: UILabel) {
+        let timerRingContainer = UIView()
+        timerRingContainer.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(timerRingContainer)
+        
+        let ringDiameter: CGFloat = 60
+        let ringPath = UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: ringDiameter, height: ringDiameter))
+        
+        let backgroundRingLayer = CAShapeLayer()
+        backgroundRingLayer.path = ringPath.cgPath
+        backgroundRingLayer.strokeColor = UIColor.lightGray.cgColor
+        backgroundRingLayer.lineWidth = 5
+        backgroundRingLayer.fillColor = UIColor.clear.cgColor
+        
+        let timerRingLayer = CAShapeLayer()
+        timerRingLayer.path = ringPath.cgPath
+        timerRingLayer.strokeColor = UIColor.systemBlue.cgColor
+        timerRingLayer.lineWidth = 5
+        timerRingLayer.fillColor = UIColor.clear.cgColor
+        timerRingLayer.strokeEnd = 1.0
+        
+        timerRingContainer.layer.addSublayer(backgroundRingLayer)
+        timerRingContainer.layer.addSublayer(timerRingLayer)
+        
+        viewController?.timerRingLayer = timerRingLayer
+        
+        NSLayoutConstraint.activate([
+            timerRingContainer.centerXAnchor.constraint(equalTo: timerLabel.centerXAnchor),
+            timerRingContainer.centerYAnchor.constraint(equalTo: timerLabel.centerYAnchor),
+            timerRingContainer.widthAnchor.constraint(equalToConstant: ringDiameter),
+            timerRingContainer.heightAnchor.constraint(equalToConstant: ringDiameter)
+        ])
     }
     
     func updateUI() {
