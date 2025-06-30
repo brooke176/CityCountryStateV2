@@ -7,7 +7,6 @@ class GameManager: NSObject, UITextFieldDelegate {
     static let shared = GameManager()
     var usedWords = Set<String>()
     weak var viewController: MessagesViewController?
-    private var currentMode: Mode?
     private let timeLimit: TimeInterval = 30
     private var timer: Timer?
     
