@@ -1,7 +1,7 @@
 import UIKit
 import Messages
 
-class BattleModeManager: NSObject, GameMode {
+class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
     func resetGame() {
         players.forEach { $0.score = 0 }
         usedWords.removeAll()
@@ -10,6 +10,11 @@ class BattleModeManager: NSObject, GameMode {
         correctStates = 0
         turnTimer?.invalidate()
         startNewTurn()
+    }
+    
+    func startGame() {
+        setupUI()
+        resetGame()
     }
 
     var score: Int {
@@ -97,11 +102,13 @@ class BattleModeManager: NSObject, GameMode {
             return
         }
         vc.letterDisplayLabel?.text = currentLetter
+        print("vc.letterDisplayLabel?.text", vc.letterDisplayLabel?.text ?? "nil")
 
         for index in players.indices {
             players[index].isActive = (index == activePlayerIndex)
         }
-        
+        print("players", players)
+
         timeRemaining = timeLimit
         vc.inputField.text = ""
         vc.inputField.isEnabled = true
@@ -251,8 +258,6 @@ class BattleModeManager: NSObject, GameMode {
             self.viewController?.feedbackLabel = uiElements.feedbackLabel
             self.viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
             self.viewController?.timerRingLayer = uiElements.timerRingLayer
-            
-            self.startNewTurn()
         }
     }
     

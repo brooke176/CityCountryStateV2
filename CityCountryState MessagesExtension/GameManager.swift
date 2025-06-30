@@ -92,8 +92,10 @@ class GameManager: NSObject, UITextFieldDelegate {
         let battleManager = BattleModeManager(viewController: vc, playerNames: playerNames)
         currentMode = battleManager
         
-        battleManager.setupUI()
-        battleManager.resetGame()
+        GameManager.shared.showGameUI {
+            battleManager.setupUI()
+            battleManager.startGame()  // ✅ Now UI is definitely ready
+        }
     }
     
     func processIncomingMessage(components: URLComponents) {
@@ -158,6 +160,8 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     @objc func handleSubmitButtonTapped() {
         guard let input = viewController?.inputField?.text else { return }
+        print("Submit button tapped with input: '\(input)'")
+
         currentMode?.handleSubmit(input: input)
     }
 }
