@@ -126,19 +126,22 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
     
     private func timerTick() {
         timeRemaining -= 1
-        guard let vc = viewController else { return }
-        GameUIHelper.updateLabels(
-            timerLabel: vc.timerLabel,
-            scoreLabel: vc.scoreLabel,
-            timerRingLayer: vc.timerRingLayer,
-            timeRemaining: timeRemaining,
-            timeLimit: timeLimit,
-            score: players[activePlayerIndex].score
-        )
         
-        if timeRemaining <= 0 {
-            turnTimer?.invalidate()
-            handlePlayerTimeout()
+        DispatchQueue.main.async {
+            guard let vc = self.viewController else { return }
+            
+            // Safely update timer ring layer
+            let progress = CGFloat(self.timeRemaining / self.timeLimit)
+            vc.timerRingLayer?.strokeEnd = progress
+            
+            // Update other UI elements
+            vc.timerLabel?.text = "\(Int(self.timeRemaining))"
+            vc.scoreLabel?.text = "Score: \(self.players[self.activePlayerIndex].score)"
+            
+            if self.timeRemaining <= 0 {
+                self.turnTimer?.invalidate()
+                self.handlePlayerTimeout()
+            }
         }
     }
     
@@ -257,7 +260,42 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
             self.viewController?.scoreLabel = uiElements.scoreLabel
             self.viewController?.feedbackLabel = uiElements.feedbackLabel
             self.viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
-            self.viewController?.timerRingLayer = uiElements.timerRingLayer
+            
+            // Initialize timer ring layer properly
+            let timerRingContainer = UIView()
+            timerRingContainer.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(timerRingContainer)
+            
+            let ringDiameter: CGFloat = 60
+            let ringPath = UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: ringDiameter, height: ringDiameter))
+            
+            let backgroundRingLayer = CAShapeLayer()
+            backgroundRingLayer.path = ringPath.cgPath
+            backgroundRingLayer.strokeColor = UIColor.lightGray.cgColor
+            backgroundRingLayer.lineWidth = 5
+            backgroundRingLayer.fillColor = UIColor.clear.cgColor
+            
+            let timerRingLayer = CAShapeLayer()
+            timerRingLayer.path = ringPath.cgPath
+            timerRingLayer.strokeColor = UIColor.systemBlue.cgColor
+            timerRingLayer.lineWidth = 5
+            timerRingLayer.fillColor = UIColor.clear.cgColor
+            timerRingLayer.strokeEnd = 1.0
+            
+            timerRingContainer.layer.addSublayer(backgroundRingLayer)
+            timerRingContainer.layer.addSublayer(timerRingLayer)
+            
+            self.viewController?.timerRingLayer = timerRingLayer
+            
+            // Add constraints
+            NSLayoutConstraint.activate([
+                timerRingContainer.centerXAnchor.constraint(equalTo: uiElements.timerLabel.centerXAnchor),
+                timerRingContainer.centerYAnchor.constraint(equalTo: uiElements.timerLabel.centerYAnchor),
+                timerRingContainer.widthAnchor.constraint(equalToConstant: ringDiameter),
+                timerRingContainer.heightAnchor.constraint(equalToConstant: ringDiameter)
+            ])
+            
+            self.startNewTurn()
         }
     }
     

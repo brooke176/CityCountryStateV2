@@ -92,9 +92,15 @@ class GameManager: NSObject, UITextFieldDelegate {
         let battleManager = BattleModeManager(viewController: vc, playerNames: playerNames)
         currentMode = battleManager
         
-        GameManager.shared.showGameUI {
-            battleManager.setupUI()
-            battleManager.startGame()  // ✅ Now UI is definitely ready
+        // First ensure UI is cleared
+        clearUI(in: vc.view)
+        
+        // Setup UI synchronously
+        battleManager.setupUI()
+        
+        // Start game after slight delay to ensure UI is ready
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            battleManager.startGame()
         }
     }
     
