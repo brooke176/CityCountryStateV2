@@ -2,7 +2,7 @@ import UIKit
 import Messages
 
 protocol GameMode: AnyObject {
-    weak var viewController: MessagesViewController? { get set }
+    var viewController: MessagesViewController? { get set }
     var currentLetter: String { get }
     var score: Int { get }
     

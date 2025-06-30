@@ -8,7 +8,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     private var timeRemaining: TimeInterval = 30
     private let timeLimit: TimeInterval = 5
     private var timer: Timer?
-    private var currentLetter: String = ""
+    internal var currentLetter: String = ""
     private var usedWords = Set<String>()
     
     init(viewController: MessagesViewController) {
@@ -27,7 +27,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
         timer?.invalidate()
     }
     
-    private func showGameUI() {
+    internal func showGameUI() {
         guard let view = viewController?.view else { return }
         GameManager.shared.clearUI(in: view)
         

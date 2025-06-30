@@ -2,6 +2,9 @@ import UIKit
 import Messages
 
 class BattleModeManager: NSObject, GameMode {
+    var score: Int {
+        return players.reduce(0) { $0 + $1.score }
+    }
     class Player {
         let id: String
         var name: String
