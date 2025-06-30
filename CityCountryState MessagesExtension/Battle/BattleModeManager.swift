@@ -2,6 +2,19 @@ import UIKit
 import Messages
 
 class BattleModeManager: NSObject, GameMode {
+    func resetGame() {
+        players.forEach { $0.score = 0 }
+        usedWords.removeAll()
+        correctCities = 0
+        correctCountries = 0
+        correctStates = 0
+        turnTimer?.invalidate()
+        startNewTurn()
+    }
+
+    func showGameUI() {
+        setupUI()
+    }
     var score: Int {
         return players.reduce(0) { $0 + $1.score }
     }

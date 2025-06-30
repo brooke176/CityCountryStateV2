@@ -2,6 +2,26 @@ import UIKit
 import Messages
 
 class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
+    func resetGame() {
+        resetClassicGame()
+    }
+    
+    func handleIncomingMessage(components: URLComponents) {
+        if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
+            showFinalResult(opponentScore: opponentScore)
+        }
+    }
+    
+    private func showFinalResult(opponentScore: Int) {
+        guard let vc = viewController else { return }
+        GameUIHelper.showFinalResult(
+            feedbackLabel: vc.feedbackLabel,
+            inputField: vc.inputField,
+            submitButton: vc.submitButton,
+            p1: score,
+            p2: opponentScore
+        )
+    }
     weak var viewController: MessagesViewController?
     
     var score: Int = 0

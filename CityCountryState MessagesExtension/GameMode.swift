@@ -2,18 +2,21 @@ import UIKit
 import Messages
 
 protocol GameMode: AnyObject {
-    var viewController: MessagesViewController? { get set }
+    // Required properties
+    weak var viewController: MessagesViewController? { get set }
     var currentLetter: String { get }
     var score: Int { get }
     
+    // Game lifecycle methods
     func startGame()
     func stopGame()
-    func handleSubmit(input: String)
-    func updateUI()
-    func handleIncomingMessage(components: URLComponents)
     func resetGame()
     
-    // UI Components
-    func setupUI()
+    // Gameplay methods
+    func handleSubmit(input: String)
+    func handleIncomingMessage(components: URLComponents)
+    
+    // UI methods
+    func updateUI()
     func showGameUI()
 }
