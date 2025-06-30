@@ -92,9 +92,8 @@ class GameManager: NSObject, UITextFieldDelegate {
         let battleManager = BattleModeManager(viewController: vc, playerNames: playerNames)
         currentMode = battleManager
         
-        GameManager.shared.showGameUI {
-            battleManager.resetGame()
-        }
+        battleManager.setupUI()
+        battleManager.resetGame()
     }
     
     func processIncomingMessage(components: URLComponents) {

@@ -138,7 +138,14 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     @objc private func startGameTapped() {
         guard let vc = viewController else { return }
         let playerNames = players.map { $0.name }
+        vc.clearModeSpecificUI()
         vc.startBattleMode(with: playerNames)
+        
+        // Force compact presentation first
+        vc.requestPresentationStyle(.compact)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            vc.requestPresentationStyle(.expanded)
+        }
     }
     
     // MARK: - UITableViewDataSource

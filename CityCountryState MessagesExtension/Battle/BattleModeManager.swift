@@ -237,6 +237,25 @@ class BattleModeManager: NSObject, GameMode {
         }
     }
     
+    func setupUI() {
+        guard let view = viewController?.view else { return }
+        GameManager.shared.clearUI(in: view)
+        
+        DispatchQueue.main.async {
+            let uiElements = GameUIHelper.buildGameUI(in: view, delegate: self)
+            
+            self.viewController?.inputField = uiElements.inputField
+            self.viewController?.submitButton = uiElements.submitButton
+            self.viewController?.timerLabel = uiElements.timerLabel
+            self.viewController?.scoreLabel = uiElements.scoreLabel
+            self.viewController?.feedbackLabel = uiElements.feedbackLabel
+            self.viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
+            self.viewController?.timerRingLayer = uiElements.timerRingLayer
+            
+            self.startNewTurn()
+        }
+    }
+    
     func updateUI() {
         guard let vc = viewController else { return }
         GameUIHelper.updateLabels(
