@@ -1,12 +1,18 @@
 import UIKit
 import Messages
 
+private enum Mode {
+    case classic(ClassicModeManager)
+    case battle(BattleModeManager)
+}
+
+private var currentMode: Mode?
+
 class GameManager: NSObject, UITextFieldDelegate {
     static let shared = GameManager()
     var usedWords = Set<String>()
-
     weak var viewController: MessagesViewController?
-    private var currentMode: GameMode?
+    private var currentMode: Mode?
     private let timeLimit: TimeInterval = 30
     private var timer: Timer?
     
@@ -68,64 +74,74 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     func updatePlayerUI() {
         guard let vc = viewController,
-              let battleManager = battleManager else { return }
+              let mode = currentMode else { return }
+        switch mode {
+        case .battle(let battleManager):
+            vc.playerStackView?.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        vc.playerStackView?.arrangedSubviews.forEach { $0.removeFromSuperview() }
+            for player in battleManager.players {
+                let container = UIView()
+                container.backgroundColor = .secondarySystemBackground
+                container.layer.cornerRadius = 8
+                container.layer.borderWidth = player.isActive ? 3 : 1
+                container.layer.borderColor = player.isActive ? UIColor.systemGreen.cgColor : UIColor.lightGray.cgColor
 
-        for player in battleManager.players {
-            let container = UIView()
-            container.backgroundColor = .secondarySystemBackground
-            container.layer.cornerRadius = 8
-            container.layer.borderWidth = player.isActive ? 3 : 1
-            container.layer.borderColor = player.isActive ? UIColor.systemGreen.cgColor : UIColor.lightGray.cgColor
+                let nameLabel = UILabel()
+                nameLabel.text = "\(player.name) (\(player.score))"
+                nameLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+                nameLabel.textAlignment = .center
+                nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-            let nameLabel = UILabel()
-            nameLabel.text = "\(player.name) (\(player.score))"
-            nameLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
-            nameLabel.textAlignment = .center
-            nameLabel.translatesAutoresizingMaskIntoConstraints = false
+                container.addSubview(nameLabel)
+                NSLayoutConstraint.activate([
+                    nameLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+                    nameLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+                ])
 
-            container.addSubview(nameLabel)
-            NSLayoutConstraint.activate([
-                nameLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-                nameLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor)
-            ])
+                vc.playerStackView?.addArrangedSubview(container)
+            }
 
-            vc.playerStackView?.addArrangedSubview(container)
-        }
+            guard let stackView = vc.playerStackView else { return }
 
-        guard let stackView = vc.playerStackView else { return }
+            stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+            for player in battleManager.players {
+                let container = UIView()
+                container.layer.cornerRadius = 10
+                container.layer.borderWidth = player.isActive ? 3 : 1
+                container.layer.borderColor = player.isActive ? UIColor.systemGreen.cgColor : UIColor.lightGray.cgColor
+                container.backgroundColor = .secondarySystemBackground
 
-        for player in battleManager.players {
-            let container = UIView()
-            container.layer.cornerRadius = 10
-            container.layer.borderWidth = player.isActive ? 3 : 1
-            container.layer.borderColor = player.isActive ? UIColor.systemGreen.cgColor : UIColor.lightGray.cgColor
-            container.backgroundColor = .secondarySystemBackground
+                let nameLabel = UILabel()
+                nameLabel.text = "\(player.name) (\(player.score))"
+                nameLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+                nameLabel.textAlignment = .center
+                nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-            let nameLabel = UILabel()
-            nameLabel.text = "\(player.name) (\(player.score))"
-            nameLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-            nameLabel.textAlignment = .center
-            nameLabel.translatesAutoresizingMaskIntoConstraints = false
+                container.addSubview(nameLabel)
+                NSLayoutConstraint.activate([
+                    nameLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+                    nameLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+                ])
 
-            container.addSubview(nameLabel)
-            NSLayoutConstraint.activate([
-                nameLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-                nameLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor)
-            ])
-
-            stackView.addArrangedSubview(container)
+                stackView.addArrangedSubview(container)
+            }
+        case .classic:
+            // Do nothing for classic mode
+            break
         }
     }
     
     func resetGame() {
         timer?.invalidate()
-        classicManager?.stopGame()
-        battleManager?.stopBattle()
-        classicManager = nil
+        switch currentMode {
+        case .classic(let classicManager):
+            classicManager.stopGame()
+        case .battle(let battleManager):
+            battleManager.stopGame()
+        case .none:
+            print("No current game mode to reset.")
+        }
     }
     
     private func generateRandomLetter() -> String {
@@ -133,16 +149,21 @@ class GameManager: NSObject, UITextFieldDelegate {
         return String(allowedLetters.randomElement()!)
     }
     
-    func startClassicMode() {
+    @objc func startClassicMode() {
         guard let vc = viewController else { return }
-        currentMode = ClassicModeManager(viewController: vc)
-        currentMode?.startGame()
+        currentMode = .classic(ClassicModeManager(viewController: vc))
+        switch currentMode {
+        case .classic(let classicManager):
+            classicManager.resetClassicGame()
+        default:
+            break
+        }
     }
     
     func startBattleMode(with playerNames: [String]) {
         guard let vc = viewController else { return }
         let battleManager = BattleModeManager(viewController: vc, playerNames: playerNames)
-        currentMode = battleManager
+        currentMode = .battle(battleManager)
         showGameUI {
             battleManager.setupUI()
         }
@@ -167,11 +188,36 @@ class GameManager: NSObject, UITextFieldDelegate {
     }
     
     private func handleBattleMessage(components: URLComponents) {
-        if let battleManager = currentMode as? BattleModeManager {
+        guard let mode = currentMode else {
+            if let playerNames = extractPlayerNames(from: components) {
+                startBattleMode(with: playerNames)
+                // After starting, handle message with new mode
+                if let modeAfterStart = currentMode {
+                    switch modeAfterStart {
+                    case .battle(let battleManager):
+                        battleManager.handleIncomingMessage(components: components)
+                    case .classic:
+                        break
+                    }
+                }
+            }
+            return
+        }
+        switch mode {
+        case .battle(let battleManager):
             battleManager.handleIncomingMessage(components: components)
-        } else if let playerNames = extractPlayerNames(from: components) {
-            startBattleMode(with: playerNames)
-            (currentMode as? BattleModeManager)?.handleIncomingMessage(components: components)
+        case .classic:
+            if let playerNames = extractPlayerNames(from: components) {
+                startBattleMode(with: playerNames)
+                if let modeAfterStart = currentMode {
+                    switch modeAfterStart {
+                    case .battle(let battleManager):
+                        battleManager.handleIncomingMessage(components: components)
+                    case .classic:
+                        break
+                    }
+                }
+            }
         }
     }
     
@@ -189,11 +235,20 @@ class GameManager: NSObject, UITextFieldDelegate {
     }
     
     func showFinalClassicResult(opponentScore: Int, components: URLComponents) {
+        var p1Score = 0
+        if let mode = currentMode {
+            switch mode {
+            case .classic(let classicManager):
+                p1Score = classicManager.score
+            case .battle:
+                p1Score = 0
+            }
+        }
         GameUIHelper.showFinalResult(
             feedbackLabel: viewController?.feedbackLabel ?? UILabel(),
             inputField: viewController?.inputField ?? UITextField(),
             submitButton: viewController?.submitButton ?? UIButton(),
-            p1: classicManager?.score ?? 0,
+            p1: p1Score,
             p2: opponentScore
         )
     }
@@ -219,10 +274,15 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     @objc func handleSubmitButtonTapped() {
         guard let input = viewController?.inputField?.text else { return }
-        if let classic = classicManager {
-            classic.handleSubmit(input: input)
-        } else if let battle = battleManager {
-            battle.handleSubmit(input: input)
+        print("Submit button tapped with input: '\(input)'")
+        print("Current mode:", currentMode as Any)
+
+        guard let mode = currentMode else { return }
+        switch mode {
+        case .classic(let classicManager):
+            classicManager.handleSubmit(input: input)
+        case .battle(let battleManager):
+            battleManager.handleSubmit(input: input)
         }
     }
 }

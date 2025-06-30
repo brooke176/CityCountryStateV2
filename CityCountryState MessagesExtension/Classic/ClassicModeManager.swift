@@ -1,12 +1,12 @@
 import UIKit
 import Messages
 
-class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
+class ClassicModeManager: NSObject, UITextFieldDelegate {
     weak var viewController: MessagesViewController?
     
     var score: Int = 0
     private var timeRemaining: TimeInterval = 30
-    private let timeLimit: TimeInterval = 60
+    private let timeLimit: TimeInterval = 5
     private var timer: Timer?
     private var currentLetter: String = ""
     private var usedWords = Set<String>()
@@ -18,7 +18,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     func startGame() {
-        resetGame()
+        resetClassicGame()
         showGameUI()
         startTimer()
     }
@@ -53,7 +53,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
         handleSubmit(input: inputText)
     }
     
-    private func updateUI() {
+    internal func updateUI() {
         guard let vc = viewController else { return }
         GameUIHelper.updateLabels(
             timerLabel: vc.timerLabel,
@@ -66,12 +66,14 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
         vc.letterDisplayLabel?.text = currentLetter
     }
     
-    private func resetGame() {
+    func resetClassicGame() {
         score = 0
         timeRemaining = timeLimit
         currentLetter = generateRandomLetter()
         usedWords.removeAll()
         timer?.invalidate()
+        showGameUI()
+        startTimer()
     }
     
     private func generateRandomLetter() -> String {
@@ -102,9 +104,8 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     
     private func handleTimeout() {
         guard let vc = viewController,
-              let conversation = vc.activeConversation else { return }
+        let conversation = vc.activeConversation else { return }
 
-        // Build final feedback string with styled summary
         let endMessage = """
         Time's up!
 
@@ -115,20 +116,20 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
         🗺️ States: \(usedWords.filter { GameData.allStates.contains($0) }.count)
         """
 
-        vc.feedbackLabel.text = endMessage
-        vc.feedbackLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-        vc.feedbackLabel.textColor = .label
-        vc.feedbackLabel.textAlignment = .center
-
-        vc.feedbackLabel.alpha = 0
-        UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseOut], animations: {
-            vc.feedbackLabel.alpha = 1
-            vc.feedbackLabel.transform = CGAffineTransform(scaleX: 1.02, y: 1.02)
-        }, completion: { _ in
-            UIView.animate(withDuration: 0.2) {
-                vc.feedbackLabel.transform = .identity
-            }
-        })
+         vc.feedbackLabel.text = endMessage
+         vc.feedbackLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+         vc.feedbackLabel.textColor = .label
+         vc.feedbackLabel.textAlignment = .center
+        
+         vc.feedbackLabel.alpha = 0
+         UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseOut], animations: {
+             vc.feedbackLabel.alpha = 1
+             vc.feedbackLabel.transform = CGAffineTransform(scaleX: 1.02, y: 1.02)
+         }, completion: { _ in
+             UIView.animate(withDuration: 0.2) {
+                 vc.feedbackLabel.transform = .identity
+             }
+         })
 
         // Draft outgoing MSMessage with classic challenge result
         var components = URLComponents()
@@ -152,9 +153,6 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
                 print("Classic challenge message sent successfully.")
             }
         }
-
-        // Collapse back to home screen
-        GameManager.shared.showHomeScreen(in: vc.view, target: vc)
     }
     
     func handleSubmit(input: String) {

@@ -23,11 +23,19 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     func joinRoom(from url: URL?) {
         print("Attempting to join room")
         players = []
+        localPlayerID = "player1"
         
         guard let url = url else {
-            print("No URL provided - creating new room")
-            players.append(Player(id: localPlayerID, name: "You", isReady: false))
+            //            print("No URL provided - creating new room")
+            //            players.append(Player(id: localPlayerID, name: "You", isReady: false))
+            print("No URL provided - creating new mock room for testing")
+            players = [
+                Player(id: "player1", name: "You", isReady: true),
+                Player(id: "player2", name: "TestUser2", isReady: true),
+                Player(id: "player3", name: "TestUser3", isReady: true)
+            ]
             showWaitingRoom()
+            startGameTapped()
             return
         }
         
@@ -102,7 +110,7 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         let startButton = UIButton(type: .system)
         startButton.setTitle("Start Game", for: .normal)
         startButton.addTarget(self, action: #selector(startGameTapped), for: .touchUpInside)
-        startButton.isEnabled = players.filter { $0.isReady }.count >= 2
+//        startButton.isEnabled = players.filter { $0.isReady }.count >= 2
         startButton.translatesAutoresizingMaskIntoConstraints = false
         
         vc.view.addSubview(titleLabel)
@@ -157,7 +165,7 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     private func toggleReady(forPlayerAt index: Int, isReady: Bool) {
         guard players.indices.contains(index) else { return }
         players[index].isReady = isReady
-        startButton?.isEnabled = players.filter { $0.isReady }.count >= 2
+//        startButton?.isEnabled = players.filter { $0.isReady }.count >= 2
         tableView?.reloadData()
     }
     
@@ -194,7 +202,7 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     private func updatePlayerReadyStatus(playerId: String, isReady: Bool) {
         if let index = players.firstIndex(where: { $0.id == playerId }) {
             players[index].isReady = isReady
-            startButton?.isEnabled = players.filter { $0.isReady }.count >= 2
+//            startButton?.isEnabled = players.filter { $0.isReady }.count >= 2
             tableView?.reloadData()
         }
     }

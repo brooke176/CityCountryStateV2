@@ -1,7 +1,7 @@
 import UIKit
 import Messages
 
-class BattleModeManager: NSObject, GameMode {
+class BattleModeManager: NSObject {
     class Player {
         let id: String
         var name: String
@@ -240,7 +240,11 @@ class BattleModeManager: NSObject, GameMode {
         startNewTurn()
     }
     
-    func stopBattle() {
+    func startGame() {
+        setupUI()
+    }
+
+    func stopGame() {
         turnTimer?.invalidate()
     }
 }

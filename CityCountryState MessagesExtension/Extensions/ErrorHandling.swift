@@ -7,9 +7,3 @@ extension UIViewController {
         present(alert, animated: true)
     }
 }
-
-extension GameMode {
-    func handleError(_ error: Error) {
-        viewController?.showErrorAlert(message: error.localizedDescription)
-    }
-}

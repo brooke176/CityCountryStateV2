@@ -3,7 +3,6 @@ import Messages
 
 class MessagesViewController: MSMessagesAppViewController {
     var battleRoomManager: BattleRoomManager?
-    // UI Elements
     var timerLabel: UILabel!
     var scoreLabel: UILabel!
     var feedbackLabel: UILabel!
@@ -80,21 +79,13 @@ class MessagesViewController: MSMessagesAppViewController {
     }
     
     @objc func startClassicMode() {
-        do {
-            try GameManager.shared.startClassicMode()
-        } catch {
-            showErrorAlert(message: "Failed to start classic mode: \(error.localizedDescription)")
-        }
+        GameManager.shared.startClassicMode()
     }
     
     @objc func sendBattleInviteMessage() {
         guard let conversation = activeConversation else { return }
-        do {
-            battleRoomManager = try BattleRoomManager(viewController: self)
-            try battleRoomManager?.sendInviteMessage(in: conversation)
-        } catch {
-            showErrorAlert(message: "Failed to send battle invite: \(error.localizedDescription)")
-        }
+            battleRoomManager = BattleRoomManager(viewController: self)
+            battleRoomManager?.sendInviteMessage(in: conversation)
     }
     
     

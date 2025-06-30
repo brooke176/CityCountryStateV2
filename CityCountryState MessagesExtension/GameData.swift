@@ -1,10 +1,5 @@
 import Foundation
 
-enum GameMode {
-    case classic
-    case battle
-}
-
 struct GameData {
     static var allCities = Set<String>()
     static var allCountries = Set<String>()
