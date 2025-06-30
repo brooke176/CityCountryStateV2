@@ -12,9 +12,6 @@ class BattleModeManager: NSObject, GameMode {
         startNewTurn()
     }
 
-    func showGameUI() {
-        setupUI()
-    }
     var score: Int {
         return players.reduce(0) { $0 + $1.score }
     }
@@ -95,16 +92,20 @@ class BattleModeManager: NSObject, GameMode {
     }
     
     func startNewTurn() {
-        viewController?.letterDisplayLabel.text = currentLetter
+        guard let vc = viewController else {
+            print("BattleModeManager: viewController is nil in startNewTurn")
+            return
+        }
+        vc.letterDisplayLabel?.text = currentLetter
 
         for index in players.indices {
             players[index].isActive = (index == activePlayerIndex)
         }
         
         timeRemaining = timeLimit
-        viewController?.inputField.text = ""
-        viewController?.inputField.isEnabled = true
-        viewController?.submitButton.isEnabled = true
+        vc.inputField.text = ""
+        vc.inputField.isEnabled = true
+        vc.submitButton.isEnabled = true
         updateUI()
         
         turnTimer?.invalidate()
@@ -112,7 +113,7 @@ class BattleModeManager: NSObject, GameMode {
             self?.timerTick()
         }
         
-        viewController?.feedbackLabel.text = "\(players[activePlayerIndex].name)'s Turn"
+        vc.feedbackLabel.text = "\(players[activePlayerIndex].name)'s Turn"
         GameManager.shared.updatePlayerUI()
     }
     
@@ -137,7 +138,12 @@ class BattleModeManager: NSObject, GameMode {
     func handlePlayerTimeout() {
         viewController?.inputField.isEnabled = false
         viewController?.submitButton.isEnabled = false
+        viewController?.inputField?.isHidden = true
+        viewController?.submitButton?.isHidden = true
+        viewController?.timerLabel?.isHidden = true
+        viewController?.scoreLabel?.isHidden = true
         viewController?.feedbackLabel.text = "\(players[activePlayerIndex].name) loses!"
+        viewController?.requestPresentationStyle(.compact)
     }
     
     func handleSubmit(input: String) {
@@ -243,21 +249,6 @@ class BattleModeManager: NSObject, GameMode {
         )
         GameManager.shared.updatePlayerUI()
         updatePlayerIcons()
-    }
-    
-    private func updateLetterDisplay() {
-        viewController?.letterDisplayLabel.text = currentLetter
-    }
-    
-    func setupUI() {
-        updateLetterDisplay()
-        setupPlayerIcons()
-        updateUI()
-        startNewTurn()
-    }
-    
-    func startGame() {
-        setupUI()
     }
 
     func stopGame() {
