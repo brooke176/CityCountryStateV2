@@ -43,7 +43,7 @@ class GameManager: NSObject, UITextFieldDelegate {
         }
     }
     
-    private func showGameUI() {
+    private func showGameUI(completion: @escaping () -> Void) {
         guard let view = viewController?.view else {
             print("Error: No view controller view available")
             return
@@ -52,15 +52,18 @@ class GameManager: NSObject, UITextFieldDelegate {
         
         DispatchQueue.main.async {
             let uiElements = GameUIHelper.buildGameUI(in: view, delegate: self)
-            
+
             self.viewController?.inputField = uiElements.inputField
             self.viewController?.submitButton = uiElements.submitButton
             self.viewController?.timerLabel = uiElements.timerLabel
+            self.viewController?.timerLabel?.backgroundColor = UIColor.blue.withAlphaComponent(0.3)
             self.viewController?.scoreLabel = uiElements.scoreLabel
             self.viewController?.feedbackLabel = uiElements.feedbackLabel
             self.viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
             self.viewController?.timerRingLayer = uiElements.timerRingLayer
             self.viewController?.submitButton?.addTarget(self, action: #selector(self.handleSubmitButtonTapped), for: .touchUpInside)
+
+            completion()
         }
     }
     
@@ -92,30 +95,11 @@ class GameManager: NSObject, UITextFieldDelegate {
             vc.playerStackView?.addArrangedSubview(container)
         }
 
-        updatePlayerTurnIndicators(players: battleManager.players)
-    }
+        guard let stackView = vc.playerStackView else { return }
 
-    func updatePlayerTurnIndicators(players: [BattleModeManager.Player]) {
-        guard let vc = viewController else { return }
+        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        vc.view.subviews.filter { $0.tag == 999 }.forEach { $0.removeFromSuperview() }
-
-        let stackView = UIStackView()
-        stackView.axis = .horizontal
-        stackView.spacing = 10
-        stackView.distribution = .fillEqually
-        stackView.tag = 999
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        vc.view.addSubview(stackView)
-
-        NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            stackView.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 10),
-            stackView.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -10),
-            stackView.heightAnchor.constraint(equalToConstant: 60)
-        ])
-
-        for player in players {
+        for player in battleManager.players {
             let container = UIView()
             container.layer.cornerRadius = 10
             container.layer.borderWidth = player.isActive ? 3 : 1
@@ -158,10 +142,12 @@ class GameManager: NSObject, UITextFieldDelegate {
     }
     
     func startBattleMode(with playerNames: [String]) {
-        guard let vc = viewController else { return }
-        battleManager = BattleModeManager(viewController: vc, playerNames: playerNames)
-        classicManager = nil
-        battleManager?.setupUI()
+        guard viewController != nil else { return }
+        let battleManager = BattleModeManager(viewController: viewController, playerNames: playerNames)
+        self.battleManager = battleManager
+        showGameUI {
+            battleManager.setupUI()
+        }
     }
     
     func processIncomingMessage(components: URLComponents) {

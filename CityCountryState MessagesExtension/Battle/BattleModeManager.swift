@@ -13,7 +13,7 @@ class BattleModeManager {
     var activePlayerIndex = 0
     var turnTimer: Timer?
     var timeRemaining: TimeInterval = 30
-    var currentLetter: String
+    var currentLetter: String = "A"
     var usedWords = Set<String>()
     var correctCities = 0
     var correctCountries = 0
@@ -26,18 +26,9 @@ class BattleModeManager {
         self.players = playerNames.map { Player(name: $0, score: 0, isActive: false) }
         let allowedLetters = "ABCDEFGHIJKLMNOPRSTUVWZ"
         currentLetter = String(allowedLetters.randomElement()!)
+        print("currentLetter", currentLetter)
     }
-    
-    func setupUI() {
-        print("BattleModeManager setting up UI")
-        updateLetterDisplay()
-        print("Updated letter display")
-        updatePlayerUI()
-        print("Updated player UI")
-        startNewTurn()
-        print("Started new turn")
-    }
-    
+
     func handleIncomingMessage(components: URLComponents) {
         guard let messageType = components.queryItems?.first(where: { $0.name == "type" })?.value else {
             print("Invalid message format")
@@ -79,15 +70,9 @@ class BattleModeManager {
         handleSubmit(input: guess)
     }
     
-    private func updateLetterDisplay() {
-        viewController?.letterDisplayLabel.text = currentLetter
-    }
-    
-    func updatePlayerUI() {
-        // Existing player UI update logic
-    }
-    
     func startNewTurn() {
+        viewController?.letterDisplayLabel.text = currentLetter
+
         for index in players.indices {
             players[index].isActive = (index == activePlayerIndex)
         }
@@ -128,7 +113,7 @@ class BattleModeManager {
     func handlePlayerTimeout() {
         viewController?.inputField.isEnabled = false
         viewController?.submitButton.isEnabled = false
-        viewController?.feedbackLabel.text = "\(players[activePlayerIndex].name) ran out of time!"
+        viewController?.feedbackLabel.text = "\(players[activePlayerIndex].name) loses!"
     }
     
     func handleSubmit(input: String) {
@@ -177,7 +162,6 @@ class BattleModeManager {
         for index in players.indices {
             players[index].isActive = (index == activePlayerIndex)
         }
-        GameManager.shared.updatePlayerTurnIndicators(players: players)
         startNewTurn()
     }
     
@@ -235,6 +219,17 @@ class BattleModeManager {
         )
         GameManager.shared.updatePlayerUI()
         updatePlayerIcons()
+    }
+    
+    private func updateLetterDisplay() {
+        viewController?.letterDisplayLabel.text = currentLetter
+    }
+    
+    func setupUI() {
+        updateLetterDisplay()
+        setupPlayerIcons()
+        updateUI()
+        startNewTurn()
     }
     
     func stopBattle() {
