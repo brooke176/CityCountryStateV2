@@ -1,7 +1,7 @@
 import UIKit
 import Messages
 
-class BattleModeManager: NSObject {
+class BattleModeManager: NSObject, GameMode {
     class Player {
         let id: String
         var name: String

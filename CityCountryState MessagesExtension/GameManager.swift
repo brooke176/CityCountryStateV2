@@ -1,12 +1,7 @@
 import UIKit
 import Messages
 
-private enum Mode {
-    case classic(ClassicModeManager)
-    case battle(BattleModeManager)
-}
-
-private var currentMode: Mode?
+private var currentMode: GameMode?
 
 class GameManager: NSObject, UITextFieldDelegate {
     static let shared = GameManager()
@@ -151,22 +146,14 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     @objc func startClassicMode() {
         guard let vc = viewController else { return }
-        currentMode = .classic(ClassicModeManager(viewController: vc))
-        switch currentMode {
-        case .classic(let classicManager):
-            classicManager.resetClassicGame()
-        default:
-            break
-        }
+        currentMode = ClassicModeManager(viewController: vc)
+        currentMode?.startGame()
     }
     
     func startBattleMode(with playerNames: [String]) {
         guard let vc = viewController else { return }
-        let battleManager = BattleModeManager(viewController: vc, playerNames: playerNames)
-        currentMode = .battle(battleManager)
-        showGameUI {
-            battleManager.setupUI()
-        }
+        currentMode = BattleModeManager(viewController: vc, playerNames: playerNames)
+        currentMode?.startGame()
     }
     
     func processIncomingMessage(components: URLComponents) {
@@ -177,48 +164,13 @@ class GameManager: NSObject, UITextFieldDelegate {
             return
         }
         
-        switch modeValue {
-        case "battle":
-            handleBattleMessage(components: components)
-        case "classic":
-            handleClassicMessage(components: components)
-        default:
-            break
-        }
-    }
-    
-    private func handleBattleMessage(components: URLComponents) {
-        guard let mode = currentMode else {
+        if modeValue == "battle" && !(currentMode is BattleModeManager) {
             if let playerNames = extractPlayerNames(from: components) {
                 startBattleMode(with: playerNames)
-                // After starting, handle message with new mode
-                if let modeAfterStart = currentMode {
-                    switch modeAfterStart {
-                    case .battle(let battleManager):
-                        battleManager.handleIncomingMessage(components: components)
-                    case .classic:
-                        break
-                    }
-                }
-            }
-            return
-        }
-        switch mode {
-        case .battle(let battleManager):
-            battleManager.handleIncomingMessage(components: components)
-        case .classic:
-            if let playerNames = extractPlayerNames(from: components) {
-                startBattleMode(with: playerNames)
-                if let modeAfterStart = currentMode {
-                    switch modeAfterStart {
-                    case .battle(let battleManager):
-                        battleManager.handleIncomingMessage(components: components)
-                    case .classic:
-                        break
-                    }
-                }
             }
         }
+        
+        currentMode?.handleIncomingMessage(components: components)
     }
     
     private func handleClassicMessage(components: URLComponents) {
@@ -274,15 +226,6 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     @objc func handleSubmitButtonTapped() {
         guard let input = viewController?.inputField?.text else { return }
-        print("Submit button tapped with input: '\(input)'")
-        print("Current mode:", currentMode as Any)
-
-        guard let mode = currentMode else { return }
-        switch mode {
-        case .classic(let classicManager):
-            classicManager.handleSubmit(input: input)
-        case .battle(let battleManager):
-            battleManager.handleSubmit(input: input)
-        }
+        currentMode?.handleSubmit(input: input)
     }
 }
