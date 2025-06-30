@@ -1,7 +1,7 @@
 import UIKit
 import Messages
 
-class ClassicModeManager: NSObject, UITextFieldDelegate {
+class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     weak var viewController: MessagesViewController?
     
     var score: Int = 0

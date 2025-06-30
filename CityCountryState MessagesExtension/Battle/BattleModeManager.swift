@@ -1,11 +1,19 @@
 import UIKit
 import Messages
 
-class BattleModeManager {
-    struct Player {
+class BattleModeManager: NSObject, GameMode {
+    class Player {
+        let id: String
         var name: String
         var score: Int
         var isActive: Bool
+        
+        init(id: String = UUID().uuidString, name: String, score: Int = 0, isActive: Bool = false) {
+            self.id = id
+            self.name = name
+            self.score = score
+            self.isActive = isActive
+        }
     }
     
     weak var viewController: MessagesViewController?

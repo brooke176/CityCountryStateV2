@@ -80,13 +80,21 @@ class MessagesViewController: MSMessagesAppViewController {
     }
     
     @objc func startClassicMode() {
-        GameManager.shared.startClassicMode()
+        do {
+            try GameManager.shared.startClassicMode()
+        } catch {
+            showErrorAlert(message: "Failed to start classic mode: \(error.localizedDescription)")
+        }
     }
     
     @objc func sendBattleInviteMessage() {
         guard let conversation = activeConversation else { return }
-        battleRoomManager = BattleRoomManager(viewController: self)
-        battleRoomManager?.sendInviteMessage(in: conversation)
+        do {
+            battleRoomManager = try BattleRoomManager(viewController: self)
+            try battleRoomManager?.sendInviteMessage(in: conversation)
+        } catch {
+            showErrorAlert(message: "Failed to send battle invite: \(error.localizedDescription)")
+        }
     }
     
     

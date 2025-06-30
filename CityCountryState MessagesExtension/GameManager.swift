@@ -6,8 +6,7 @@ class GameManager: NSObject, UITextFieldDelegate {
     var usedWords = Set<String>()
 
     weak var viewController: MessagesViewController?
-    private var classicManager: ClassicModeManager?
-    private var battleManager: BattleModeManager?
+    private var currentMode: GameMode?
     private let timeLimit: TimeInterval = 30
     private var timer: Timer?
     
@@ -136,15 +135,14 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     func startClassicMode() {
         guard let vc = viewController else { return }
-        classicManager = ClassicModeManager(viewController: vc)
-        battleManager = nil
-        classicManager?.startGame()
+        currentMode = ClassicModeManager(viewController: vc)
+        currentMode?.startGame()
     }
     
     func startBattleMode(with playerNames: [String]) {
-        guard viewController != nil else { return }
-        let battleManager = BattleModeManager(viewController: viewController, playerNames: playerNames)
-        self.battleManager = battleManager
+        guard let vc = viewController else { return }
+        let battleManager = BattleModeManager(viewController: vc, playerNames: playerNames)
+        currentMode = battleManager
         showGameUI {
             battleManager.setupUI()
         }
@@ -158,24 +156,36 @@ class GameManager: NSObject, UITextFieldDelegate {
             return
         }
         
-        if modeValue == "battle" {
-            if let battleManager = battleManager {
-                battleManager.handleIncomingMessage(components: components)
-            } else {
-                // Handle case where we receive battle message but aren't in battle mode
-                let playerNames = components.queryItems?
-                    .filter { $0.name.hasPrefix("player") }
-                    .compactMap { $0.value }
-                if let names = playerNames, !names.isEmpty {
-                    startBattleMode(with: names)
-                    battleManager?.handleIncomingMessage(components: components)
-                }
-            }
-        } else {
-            if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
-                showFinalClassicResult(opponentScore: opponentScore, components: components)
-            }
+        switch modeValue {
+        case "battle":
+            handleBattleMessage(components: components)
+        case "classic":
+            handleClassicMessage(components: components)
+        default:
+            break
         }
+    }
+    
+    private func handleBattleMessage(components: URLComponents) {
+        if let battleManager = currentMode as? BattleModeManager {
+            battleManager.handleIncomingMessage(components: components)
+        } else if let playerNames = extractPlayerNames(from: components) {
+            startBattleMode(with: playerNames)
+            (currentMode as? BattleModeManager)?.handleIncomingMessage(components: components)
+        }
+    }
+    
+    private func handleClassicMessage(components: URLComponents) {
+        if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
+            showFinalClassicResult(opponentScore: opponentScore, components: components)
+        }
+    }
+    
+    private func extractPlayerNames(from components: URLComponents) -> [String]? {
+        let names = components.queryItems?
+            .filter { $0.name.hasPrefix("player") && $0.name.contains("name") }
+            .compactMap { $0.value }
+        return names?.isEmpty == false ? names : nil
     }
     
     func showFinalClassicResult(opponentScore: Int, components: URLComponents) {
