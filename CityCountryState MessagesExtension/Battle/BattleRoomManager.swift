@@ -75,18 +75,26 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         components.queryItems = [
             URLQueryItem(name: "mode", value: "battle"),
             URLQueryItem(name: "player1name", value: "You"),
-            URLQueryItem(name: "player1ready", value: "false")
+            URLQueryItem(name: "player1ready", value: "false"),
+            URLQueryItem(name: "player1id", value: localPlayerID)
         ]
 
         let layout = MSMessageTemplateLayout()
         layout.caption = "LET’S PLAY CITY COUNTRY STATE! (BATTLE MODE)"
         layout.image = UIImage(named: "newimage")
+        layout.subcaption = "Join the battle!"
         
         let message = MSMessage()
         message.layout = layout
         message.url = components.url
         
-        conversation.insert(message, completionHandler: nil)
+        conversation.insert(message) { error in
+            if let error = error {
+                print("Error sending battle invite: \(error.localizedDescription)")
+            } else {
+                print("Battle invite sent successfully")
+            }
+        }
     }
     
     private func showWaitingRoom() {
