@@ -41,7 +41,7 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         
         guard let url = url else {
             print("No URL provided - creating new room")
-//            players.append(Player(id: localPlayerID, name: "You", isReady: false))
+            players.append(Player(id: localPlayerID, name: savedLocalPlayerName ?? "You", isReady: false))
             showWaitingRoom()
             return
         }
@@ -62,12 +62,15 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         }
         
         var existingPlayers: [Player] = []
-        for i in 1...10 {
-            if let name = queryItems.first(where: { $0.name == "player\(i)name" })?.value,
-               let readyStr = queryItems.first(where: { $0.name == "player\(i)ready" })?.value {
+        for item in queryItems {
+            if item.name.hasSuffix("id"), 
+               let playerId = item.value,
+               let nameItem = queryItems.first(where: { $0.name == "\(item.name.dropLast(2))name" }),
+               let name = nameItem.value,
+               let readyItem = queryItems.first(where: { $0.name == "\(item.name.dropLast(2))ready" }),
+               let readyStr = readyItem.value {
                 let isReady = (readyStr == "true")
-                let id = "player\(i)"
-                existingPlayers.append(Player(id: id, name: name, isReady: isReady))
+                existingPlayers.append(Player(id: playerId, name: name, isReady: isReady))
             }
         }
         
@@ -202,7 +205,26 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     private func toggleReady(forPlayerAt index: Int, isReady: Bool) {
         guard players.indices.contains(index) else { return }
         players[index].isReady = isReady
-//        startButton?.isEnabled = players.filter { $0.isReady }.count >= 2
+        
+        // Send ready state update to other players
+        if let conversation = viewController?.activeConversation {
+            var components = URLComponents()
+            components.queryItems = [
+                URLQueryItem(name: "mode", value: "battle"),
+                URLQueryItem(name: "type", value: "playerReady"),
+                URLQueryItem(name: "playerId", value: players[index].id),
+                URLQueryItem(name: "isReady", value: isReady ? "true" : "false")
+            ]
+            
+            let message = MSMessage()
+            message.url = components.url
+            conversation.insert(message) { error in
+                if let error = error {
+                    print("Error sending ready state: \(error.localizedDescription)")
+                }
+            }
+        }
+        
         tableView?.reloadData()
     }
     
