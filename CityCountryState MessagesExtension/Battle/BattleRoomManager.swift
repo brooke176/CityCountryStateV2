@@ -12,7 +12,17 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     }
     
     private var players: [Player] = []
-    private var localPlayerID: String = UUID().uuidString
+    private let localPlayerIDKey = "localPlayerID"
+
+    private var localPlayerID: String {
+        if let saved = UserDefaults.standard.string(forKey: localPlayerIDKey) {
+            return saved
+        } else {
+            let newID = UUID().uuidString
+            UserDefaults.standard.set(newID, forKey: localPlayerIDKey)
+            return newID
+        }
+    }
     private weak var tableView: UITableView?
     private weak var startButton: UIButton?
     
@@ -28,11 +38,10 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     func joinRoom(from url: URL?) {
         print("Attempting to join room")
         players = []
-        localPlayerID = UUID().uuidString
         
         guard let url = url else {
             print("No URL provided - creating new room")
-            players.append(Player(id: localPlayerID, name: "You", isReady: false))
+//            players.append(Player(id: localPlayerID, name: "You", isReady: false))
             showWaitingRoom()
             return
         }
@@ -40,7 +49,7 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         print("Joining room with URL: \(url)")
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             print("Failed to create URLComponents from URL")
-            players.append(Player(id: localPlayerID, name: "You", isReady: false))
+//            players.append(Player(id: localPlayerID, name: "You", isReady: false))
             showWaitingRoom()
             return
         }
@@ -63,9 +72,15 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         }
         
         players = existingPlayers
-        if !players.contains(where: { $0.id == localPlayerID }) {
-            players.append(Player(id: localPlayerID, name: "You", isReady: false))
+        if players.first(where: { $0.id == localPlayerID }) == nil {
+            var defaultName = UserDefaults.standard.string(forKey: playerNameKey) ?? "You"
+            // If defaultName already exists in players, disambiguate
+            if players.contains(where: { $0.name == defaultName }) {
+                defaultName += " (You)"
+            }
+            players.append(Player(id: localPlayerID, name: defaultName, isReady: false))
         }
+        print("Players in room: \(players.map { $0.name })")
         
         showWaitingRoom()
     }
@@ -74,7 +89,7 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         var components = URLComponents()
         components.queryItems = [
             URLQueryItem(name: "mode", value: "battle"),
-            URLQueryItem(name: "player1name", value: "You"),
+            URLQueryItem(name: "player1name", value: savedLocalPlayerName),
             URLQueryItem(name: "player1ready", value: "false"),
             URLQueryItem(name: "player1id", value: localPlayerID)
         ]
