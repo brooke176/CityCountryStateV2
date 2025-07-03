@@ -39,7 +39,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     
     func startGame() {
         resetClassicGame()
-        showGameUI()
+        setupUI()
         startTimer()
     }
     
@@ -47,7 +47,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
         timer?.invalidate()
     }
     
-    internal func showGameUI() {
+    internal func setupUI() {
         guard let view = viewController?.view else { return }
         GameManager.shared.clearUI(in: view)
         
@@ -92,7 +92,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
         currentLetter = generateRandomLetter()
         usedWords.removeAll()
         timer?.invalidate()
-        showGameUI()
+        setupUI()
         startTimer()
     }
     
@@ -123,9 +123,14 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     private func handleTimeout() {
-        guard let vc = viewController,
-        let conversation = vc.activeConversation else { return }
-
+        guard let viewController = viewController,
+        let conversation = viewController.activeConversation else { return }
+        viewController.letterDisplayLabel?.isHidden = true
+        viewController.inputField?.isHidden = true
+        viewController.submitButton?.isHidden = true
+        viewController.timerLabel?.isHidden = true
+        viewController.scoreLabel?.isHidden = true
+        viewController.requestPresentationStyle(.compact)
         let endMessage = """
         Time's up!
 
@@ -136,18 +141,18 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
         🗺️ States: \(usedWords.filter { GameData.allStates.contains($0) }.count)
         """
 
-         vc.feedbackLabel.text = endMessage
-         vc.feedbackLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-         vc.feedbackLabel.textColor = .label
-         vc.feedbackLabel.textAlignment = .center
+        viewController.feedbackLabel.text = endMessage
+        viewController.feedbackLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        viewController.feedbackLabel.textColor = .label
+        viewController.feedbackLabel.textAlignment = .center
         
-         vc.feedbackLabel.alpha = 0
+        viewController.feedbackLabel.alpha = 0
          UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseOut], animations: {
-             vc.feedbackLabel.alpha = 1
-             vc.feedbackLabel.transform = CGAffineTransform(scaleX: 1.02, y: 1.02)
+             viewController.feedbackLabel.alpha = 1
+             viewController.feedbackLabel.transform = CGAffineTransform(scaleX: 1.02, y: 1.02)
          }, completion: { _ in
              UIView.animate(withDuration: 0.2) {
-                 vc.feedbackLabel.transform = .identity
+                 viewController.feedbackLabel.transform = .identity
              }
          })
 

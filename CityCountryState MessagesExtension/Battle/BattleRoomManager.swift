@@ -3,6 +3,7 @@ import Messages
 
 class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     private weak var viewController: MessagesViewController?
+    private let playerNameKey = "playerName"
     
     struct Player {
         let id: String
@@ -14,6 +15,10 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     private var localPlayerID: String = UUID().uuidString
     private weak var tableView: UITableView?
     private weak var startButton: UIButton?
+    
+    private var savedLocalPlayerName: String? {
+        UserDefaults.standard.string(forKey: playerNameKey)
+    }
     
     init(viewController: MessagesViewController) {
         self.viewController = viewController
@@ -159,7 +164,16 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
         }
         
         let player = players[indexPath.row]
-        cell.configure(with: player, isLocalPlayer: player.id == localPlayerID)
+        let isLocal = player.id == localPlayerID
+        
+        let nameToShow: String
+        if isLocal, let savedName = savedLocalPlayerName, !savedName.isEmpty {
+            nameToShow = savedName
+        } else {
+            nameToShow = player.name
+        }
+        
+        cell.configure(with: player, isLocalPlayer: isLocal, savedName: isLocal ? savedLocalPlayerName : nil)
         cell.readyToggleChanged = { [weak self] isReady in
             self?.toggleReady(forPlayerAt: indexPath.row, isReady: isReady)
         }
@@ -178,7 +192,12 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     
     private func updatePlayerName(at index: Int, newName: String) {
         guard players.indices.contains(index) else { return }
-        players[index].name = newName.isEmpty ? "You" : newName
+        let nameToSave = newName.isEmpty ? "You" : newName
+        players[index].name = nameToSave
+        
+        if players[index].id == localPlayerID {
+            UserDefaults.standard.set(nameToSave, forKey: playerNameKey)
+        }
     }
 
     // MARK: - Message Handling
@@ -254,8 +273,12 @@ class WaitingRoomPlayerCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func configure(with player: BattleRoomManager.Player, isLocalPlayer: Bool) {
-        nameField.text = player.name
+    func configure(with player: BattleRoomManager.Player, isLocalPlayer: Bool, savedName: String?) {
+        if isLocalPlayer, let savedName = savedName {
+            nameField.text = savedName
+        } else {
+            nameField.text = player.name
+        }
         nameField.isEnabled = isLocalPlayer
         nameField.textColor = isLocalPlayer ? .label : .secondaryLabel
         readySwitch.isOn = player.isReady
