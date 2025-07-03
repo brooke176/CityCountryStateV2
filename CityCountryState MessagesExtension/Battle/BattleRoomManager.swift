@@ -28,19 +28,12 @@ class BattleRoomManager: NSObject, UITableViewDataSource, UITableViewDelegate {
     func joinRoom(from url: URL?) {
         print("Attempting to join room")
         players = []
-        localPlayerID = "player1"
+        localPlayerID = UUID().uuidString
         
         guard let url = url else {
-            //            print("No URL provided - creating new room")
-            //            players.append(Player(id: localPlayerID, name: "You", isReady: false))
-            print("No URL provided - creating new mock room for testing")
-            players = [
-                Player(id: "player1", name: "You", isReady: true),
-                Player(id: "player2", name: "TestUser2", isReady: true),
-                Player(id: "player3", name: "TestUser3", isReady: true)
-            ]
+            print("No URL provided - creating new room")
+            players.append(Player(id: localPlayerID, name: "You", isReady: false))
             showWaitingRoom()
-            startGameTapped()
             return
         }
         

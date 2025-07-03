@@ -8,7 +8,14 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     
     func handleIncomingMessage(components: URLComponents) {
         if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
-            showFinalResult(opponentScore: opponentScore)
+            if score == 0 {
+                // This is the first player's turn
+                score = opponentScore
+                startGame()
+            } else {
+                // This is the response with opponent's score
+                showFinalResult(opponentScore: opponentScore)
+            }
         }
     }
     
@@ -125,21 +132,30 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     private func handleTimeout() {
         guard let viewController = viewController,
         let conversation = viewController.activeConversation else { return }
+        
         viewController.letterDisplayLabel?.isHidden = true
         viewController.inputField?.isHidden = true
         viewController.submitButton?.isHidden = true
         viewController.timerLabel?.isHidden = true
         viewController.scoreLabel?.isHidden = true
         viewController.requestPresentationStyle(.compact)
-        let endMessage = """
-        Time's up!
-
-        You scored \(score) total:
-
-        📍 Cities: \(usedWords.filter { GameData.allCities.contains($0) }.count)
-        🌐 Countries: \(usedWords.filter { GameData.allCountries.contains($0) }.count)
-        🗺️ States: \(usedWords.filter { GameData.allStates.contains($0) }.count)
-        """
+        
+        let endMessage: String
+        if score == 0 {
+            // First player's turn
+            endMessage = "Your turn! Score: \(score)"
+        } else {
+            // Game complete
+            endMessage = """
+            Game Over!
+            
+            You scored \(score) total:
+            
+            📍 Cities: \(usedWords.filter { GameData.allCities.contains($0) }.count)
+            🌐 Countries: \(usedWords.filter { GameData.allCountries.contains($0) }.count)
+            🗺️ States: \(usedWords.filter { GameData.allStates.contains($0) }.count)
+            """
+        }
 
         viewController.feedbackLabel.text = endMessage
         viewController.feedbackLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
