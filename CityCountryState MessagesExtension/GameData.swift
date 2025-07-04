@@ -1,4 +1,6 @@
 import Foundation
+import Messages
+import UIKit
 
 struct GameData {
     static var allCities = Set<String>()
@@ -15,4 +17,17 @@ struct GameData {
             }
         }
     }
+}
+
+protocol GameMode: AnyObject {
+    var viewController: MessagesViewController? { get set }
+    var currentLetter: String { get }
+    var score: Int { get }
+    func stopGame()
+    func resetGame()
+    
+    func handleSubmit(input: String)
+    func handleIncomingMessage(components: URLComponents)
+    
+    func updateUI()
 }

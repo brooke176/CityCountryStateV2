@@ -11,10 +11,19 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
             if score == 0 {
                 // This is the first player's turn
                 score = opponentScore
+                if let incomingLetter = components.queryItems?.first(where: { $0.name == "letter" })?.value {
+                    currentLetter = incomingLetter
+                }
                 startGame()
             } else {
                 // This is the response with opponent's score
-                showFinalResult(opponentScore: opponentScore)
+                if score > opponentScore {
+                    viewController?.feedbackLabel.text = "You won! 🎉\nYour score: \(score)\nOpponent: \(opponentScore)"
+                } else if score < opponentScore {
+                    viewController?.feedbackLabel.text = "You lost. 😢\nYour score: \(score)\nOpponent: \(opponentScore)"
+                } else {
+                    viewController?.feedbackLabel.text = "It’s a tie! 🤝\nScore: \(score)"
+                }
             }
         }
     }
@@ -33,21 +42,53 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     
     var score: Int = 0
     private var timeRemaining: TimeInterval = 30
-    private let timeLimit: TimeInterval = 5
+    private let timeLimit: TimeInterval = 20
     private var timer: Timer?
     internal var currentLetter: String = ""
     private var usedWords = Set<String>()
     
-    init(viewController: MessagesViewController) {
+    init(viewController: MessagesViewController, initialLetter: String? = nil) {
         self.viewController = viewController
         super.init()
-        currentLetter = generateRandomLetter()
+        if let letter = initialLetter {
+            currentLetter = letter
+        } else {
+            currentLetter = generateRandomLetter()
+        }
     }
     
     func startGame() {
         resetClassicGame()
         setupUI()
         startTimer()
+    }
+    
+    func sendInitialInvite() {
+        guard let vc = viewController, let conversation = vc.activeConversation else { return }
+
+        let layout = MSMessageTemplateLayout()
+        layout.caption = "LET’S PLAY CITY COUNTRY STATE!"
+        layout.image = UIImage(named: "newimage")
+        layout.subcaption = "Classic Mode"
+
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "mode", value: "classic"),
+            URLQueryItem(name: "score", value: "0"),
+            URLQueryItem(name: "letter", value: generateRandomLetter())
+        ]
+
+        let message = MSMessage()
+        message.layout = layout
+        message.url = components.url
+
+        conversation.insert(message) { error in
+            if let error = error {
+                print("Error sending classic mode invite: \(error.localizedDescription)")
+            } else {
+                print("Classic mode invite sent.")
+            }
+        }
     }
     
     func stopGame() {
@@ -96,7 +137,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     func resetClassicGame() {
         score = 0
         timeRemaining = timeLimit
-        currentLetter = generateRandomLetter()
+        if currentLetter.isEmpty { currentLetter = generateRandomLetter() }
         usedWords.removeAll()
         timer?.invalidate()
         setupUI()
@@ -130,69 +171,65 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     private func handleTimeout() {
-        guard let viewController = viewController,
-        let conversation = viewController.activeConversation else { return }
-        
+        guard let viewController = viewController else { return }
+
         viewController.letterDisplayLabel?.isHidden = true
         viewController.inputField?.isHidden = true
         viewController.submitButton?.isHidden = true
         viewController.timerLabel?.isHidden = true
         viewController.scoreLabel?.isHidden = true
         viewController.requestPresentationStyle(.compact)
-        
-        let endMessage: String
-        if score == 0 {
-            // First player's turn
-            endMessage = "Your turn! Score: \(score)"
-        } else {
-            // Game complete
-            endMessage = """
-            Game Over!
-            
-            You scored \(score) total:
-            
-            📍 Cities: \(usedWords.filter { GameData.allCities.contains($0) }.count)
-            🌐 Countries: \(usedWords.filter { GameData.allCountries.contains($0) }.count)
-            🗺️ States: \(usedWords.filter { GameData.allStates.contains($0) }.count)
-            """
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.showGameOverView()
         }
+    }
 
-        viewController.feedbackLabel.text = endMessage
-        viewController.feedbackLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-        viewController.feedbackLabel.textColor = .label
-        viewController.feedbackLabel.textAlignment = .center
-        
-        viewController.feedbackLabel.alpha = 0
-         UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseOut], animations: {
-             viewController.feedbackLabel.alpha = 1
-             viewController.feedbackLabel.transform = CGAffineTransform(scaleX: 1.02, y: 1.02)
-         }, completion: { _ in
-             UIView.animate(withDuration: 0.2) {
-                 viewController.feedbackLabel.transform = .identity
-             }
-         })
+    private func showGameOverView() {
+        guard let vc = viewController, let conversation = vc.activeConversation else { return }
 
-        // Draft outgoing MSMessage with classic challenge result
+        let gameOverView = GameUIHelper.buildGameOverView(score: score)
+        GameManager.shared.clearUI(in: vc.view)
+        vc.view.addSubview(gameOverView)
+
+        gameOverView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            gameOverView.topAnchor.constraint(equalTo: vc.view.topAnchor),
+            gameOverView.bottomAnchor.constraint(equalTo: vc.view.bottomAnchor),
+            gameOverView.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor),
+            gameOverView.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor)
+        ])
+
         var components = URLComponents()
         components.queryItems = [
             URLQueryItem(name: "mode", value: "classic"),
-            URLQueryItem(name: "score", value: "\(score)")
+            URLQueryItem(name: "score", value: "\(score)"),
+            URLQueryItem(name: "letter", value: currentLetter)
         ]
 
         let layout = MSMessageTemplateLayout()
-        layout.caption = "LET’S PLAY CITY COUNTRY STATE! (CLASSIC MODE)"
+        layout.caption = "LET’S PLAY CITY COUNTRY STATE!"
         layout.image = UIImage(named: "newimage")
+        layout.subcaption = "Classic Mode"
 
-        let message = MSMessage()
-        message.layout = layout
-        message.url = components.url
+        conversation.selectedMessage?.url = components.url
+        conversation.selectedMessage?.layout = layout
 
-        conversation.insert(message) { error in
-            if let error = error {
-                print("Error sending message: \(error.localizedDescription)")
-            } else {
-                print("Classic challenge message sent successfully.")
-            }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+        gameOverView.feedbackLabel?.text = "Score sent ✓"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.animateWaitingDots(in: gameOverView.feedbackLabel!)
+        }
+    }
+    
+    private func animateWaitingDots(in label: UILabel) {
+        var dotCount = 1
+        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
+            if self.timer == nil { timer.invalidate(); return }
+            let dots = String(repeating: ".", count: dotCount)
+            label.text = "Waiting for opponent" + dots
+            dotCount = dotCount % 3 + 1
         }
     }
     

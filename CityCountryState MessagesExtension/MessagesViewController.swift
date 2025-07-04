@@ -18,7 +18,6 @@ class MessagesViewController: MSMessagesAppViewController {
         print("MessagesViewController viewDidLoad")
         GameManager.shared.setup(with: self)
         self.submitButton?.addTarget(GameManager.shared, action: #selector(GameManager.handleSubmitButtonTapped), for: .touchUpInside)
-        GameManager.shared.showHomeScreen(in: view, target: self)
     }
     
     func clearModeSpecificUI() {
@@ -30,32 +29,25 @@ class MessagesViewController: MSMessagesAppViewController {
         print("willBecomeActive with conversation: \(conversation)")
         print("Local participant: \(conversation.localParticipantIdentifier)")
         print("Remote participants: \(conversation.remoteParticipantIdentifiers)")
-        
-        guard let selectedMessage = conversation.selectedMessage else {
-            print("No selected message - showing home screen")
+
+        guard let selectedMessage = conversation.selectedMessage,
+              let url = selectedMessage.url,
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            print("No valid selected message or URL — assuming user is initiating game. Showing home screen.")
             GameManager.shared.showHomeScreen(in: view, target: self)
             return
         }
-        
+
         print("Selected message: \(selectedMessage)")
-        guard let url = selectedMessage.url else {
-            print("Message has no URL - showing home screen")
-            GameManager.shared.showHomeScreen(in: view, target: self)
-            return
-        }
-        
         print("Message URL: \(url)")
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            print("Failed to parse URL components - showing home screen")
-            GameManager.shared.showHomeScreen(in: view, target: self)
-            return
-        }
-        
+
         if components.queryItems?.contains(where: { $0.name == "mode" && $0.value == "battle" }) == true {
             battleRoomManager = BattleRoomManager(viewController: self)
             battleRoomManager?.joinRoom(from: url)
-        } else {
+        } else if components.queryItems?.contains(where: { $0.name == "mode" && $0.value == "classic" }) == true {
             GameManager.shared.processIncomingMessage(components: components)
+        } else {
+            print("Unknown or missing mode — doing nothing.")
         }
     }
     

@@ -4,8 +4,16 @@ struct GameUIHelper {
     static func updateLabels(timerLabel: UILabel, scoreLabel: UILabel, timerRingLayer: CAShapeLayer, timeRemaining: TimeInterval, timeLimit: TimeInterval, score: Int) {
         timerLabel.text = "\(Int(timeRemaining))"
         scoreLabel.text = "Score: \(score)"
-        let progress = CGFloat(timeRemaining / timeLimit)
-        timerRingLayer.strokeEnd = progress
+        
+        guard timeLimit > 0 else {
+            timerRingLayer.strokeEnd = 0
+            return
+        }
+        
+        let rawProgress = timeRemaining / timeLimit
+        let clampedProgress = max(0, min(1, rawProgress))
+        
+        timerRingLayer.strokeEnd = CGFloat(clampedProgress)
     }
 
     static func showFinalResult(feedbackLabel: UILabel, inputField: UITextField, submitButton: UIButton, p1: Int, p2: Int) {
@@ -24,24 +32,6 @@ struct GameUIHelper {
         feedbackLabel.text = resultText
         feedbackLabel.textColor = .label
         feedbackLabel.font = UIFont.systemFont(ofSize: 22, weight: .bold)
-    }
-
-    static func handleIncomingMessage(feedbackLabel: UILabel, inputField: UITextField, submitButton: UIButton, score: Int, opponentScore: Int) {
-        inputField.isEnabled = true
-        submitButton.isEnabled = true
-
-        let resultText: String
-        if score > opponentScore {
-            resultText = "🏆 You win! (\(score) vs \(opponentScore))"
-        } else if score < opponentScore {
-            resultText = "😞 You lose... (\(score) vs \(opponentScore))"
-        } else {
-            resultText = "🤝 It's a tie! (\(score) vs \(opponentScore))"
-        }
-
-        feedbackLabel.text = resultText
-        feedbackLabel.textColor = .label
-        feedbackLabel.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
     }
 
     static func buildHomeScreen(in parentView: UIView, target: Any, classicSelector: Selector, battleSelector: Selector) {
@@ -224,5 +214,53 @@ struct GameUIHelper {
             timerRingLayer: timerRingLayer,
             plusOneLabel: plusOneLabel
         )
+    }
+
+    static func buildGameOverView(score: Int) -> UIView {
+        let gameOverView = UIView()
+        gameOverView.backgroundColor = .systemBackground
+
+        let scoreLabel = UILabel()
+        scoreLabel.translatesAutoresizingMaskIntoConstraints = false
+        scoreLabel.text = "Score: \(score)"
+        scoreLabel.font = UIFont.systemFont(ofSize: 48, weight: .bold)
+        scoreLabel.textAlignment = .center
+        scoreLabel.textColor = .label
+
+        let feedbackLabel = UILabel()
+        feedbackLabel.translatesAutoresizingMaskIntoConstraints = false
+        feedbackLabel.text = ""
+        feedbackLabel.font = UIFont.systemFont(ofSize: 24, weight: .medium)
+        feedbackLabel.textAlignment = .center
+        feedbackLabel.textColor = .secondaryLabel
+        feedbackLabel.numberOfLines = 0
+
+        gameOverView.addSubview(scoreLabel)
+        gameOverView.addSubview(feedbackLabel)
+
+        NSLayoutConstraint.activate([
+            scoreLabel.centerXAnchor.constraint(equalTo: gameOverView.centerXAnchor),
+            scoreLabel.centerYAnchor.constraint(equalTo: gameOverView.centerYAnchor, constant: -20),
+
+            feedbackLabel.topAnchor.constraint(equalTo: scoreLabel.bottomAnchor, constant: 12),
+            feedbackLabel.centerXAnchor.constraint(equalTo: gameOverView.centerXAnchor),
+            feedbackLabel.leadingAnchor.constraint(greaterThanOrEqualTo: gameOverView.leadingAnchor, constant: 20),
+            feedbackLabel.trailingAnchor.constraint(lessThanOrEqualTo: gameOverView.trailingAnchor, constant: -20)
+        ])
+
+        // Expose feedbackLabel as a stored property on gameOverView using associated object for access if needed
+        objc_setAssociatedObject(gameOverView, &AssociatedKeys.feedbackLabelKey, feedbackLabel, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+
+        return gameOverView
+    }
+}
+
+private struct AssociatedKeys {
+    static var feedbackLabelKey = "feedbackLabelKey"
+}
+
+extension UIView {
+    var feedbackLabel: UILabel? {
+        return objc_getAssociatedObject(self, &AssociatedKeys.feedbackLabelKey) as? UILabel
     }
 }

@@ -42,30 +42,6 @@ class GameManager: NSObject, UITextFieldDelegate {
         }
     }
     
-    private func showGameUI(completion: @escaping () -> Void) {
-        guard let view = viewController?.view else {
-            print("Error: No view controller view available")
-            return
-        }
-        clearUI(in: view)
-        
-        DispatchQueue.main.async {
-            let uiElements = GameUIHelper.buildGameUI(in: view, delegate: self)
-
-            self.viewController?.inputField = uiElements.inputField
-            self.viewController?.submitButton = uiElements.submitButton
-            self.viewController?.timerLabel = uiElements.timerLabel
-            self.viewController?.timerLabel?.backgroundColor = UIColor.blue.withAlphaComponent(0.3)
-            self.viewController?.scoreLabel = uiElements.scoreLabel
-            self.viewController?.feedbackLabel = uiElements.feedbackLabel
-            self.viewController?.letterDisplayLabel = uiElements.letterDisplayLabel
-            self.viewController?.timerRingLayer = uiElements.timerRingLayer
-            self.viewController?.submitButton?.addTarget(self, action: #selector(self.handleSubmitButtonTapped), for: .touchUpInside)
-
-            completion()
-        }
-    }
-    
     func updatePlayerUI() {
         currentMode?.updateUI()
     }
@@ -84,7 +60,7 @@ class GameManager: NSObject, UITextFieldDelegate {
         guard let vc = viewController else { return }
         let classicManager = ClassicModeManager(viewController: vc)
         currentMode = classicManager
-        classicManager.startGame()
+        classicManager.sendInitialInvite()
     }
     
     func startBattleMode(with playerNames: [String]) {
@@ -106,24 +82,34 @@ class GameManager: NSObject, UITextFieldDelegate {
     
     func processIncomingMessage(components: URLComponents) {
         guard let modeValue = components.queryItems?.first(where: { $0.name == "mode" })?.value else {
-            DispatchQueue.main.async {
-                self.showHomeScreen(in: self.viewController?.view ?? UIView(), target: self.viewController as Any)
-            }
+            print("No mode found in incoming message; ignoring.")
             return
         }
-        
-        if modeValue == "battle" && !(currentMode is BattleModeManager) {
-            if let playerNames = extractPlayerNames(from: components) {
+
+        switch modeValue {
+        case "battle":
+            if !(currentMode is BattleModeManager),
+               let playerNames = extractPlayerNames(from: components) {
                 startBattleMode(with: playerNames)
             }
-        }
-        
-        currentMode?.handleIncomingMessage(components: components)
-    }
-    
-    private func handleClassicMessage(components: URLComponents) {
-        if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
-            showFinalClassicResult(opponentScore: opponentScore, components: components)
+            currentMode?.handleIncomingMessage(components: components)
+
+        case "classic":
+            if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
+                showFinalClassicResult(opponentScore: opponentScore, components: components)
+            }
+            guard (components.queryItems?.first(where: { $0.name == "letter" })?.value) != nil else {
+                print("No letter found in classic message; ignoring.")
+                return
+            }
+            guard let vc = viewController else { return }
+            let classicManager = ClassicModeManager(viewController: vc)
+            currentMode = classicManager
+            classicManager.startGame()
+            currentMode?.handleIncomingMessage(components: components)
+
+        default:
+            print("Unknown mode: \(modeValue); ignoring.")
         }
     }
     

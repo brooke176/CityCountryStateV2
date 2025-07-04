@@ -14,7 +14,9 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
     
     func startGame() {
         setupUI()
-        resetGame()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.startNewTurn()
+        }
     }
 
     var score: Int {
@@ -133,31 +135,40 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
     private func timerTick() {
         timeRemaining -= 1
         
-        // Update UI on main thread
+        // Handle timeout BEFORE trying to update any UI
+        if timeRemaining <= 0 {
+            turnTimer?.invalidate()
+            turnTimer = nil
+            DispatchQueue.main.async { [weak self] in
+                self?.handlePlayerTimeout()
+            }
+            return
+        }
+        
         DispatchQueue.main.async { [weak self] in
-            guard let self = self, 
+            guard let self = self,
                   let vc = self.viewController,
+                  let timerLabel = vc.timerLabel,
+                  let scoreLabel = vc.scoreLabel,
                   let timerRingLayer = vc.timerRingLayer else {
+                print("timerTick: Required UI elements missing, skipping UI update.")
                 return
             }
             
-            // Update timer ring
-            let progress = CGFloat(self.timeRemaining / self.timeLimit)
+            let progress: CGFloat
+            if self.timeLimit > 0 {
+                progress = max(0, min(1, CGFloat(self.timeRemaining / self.timeLimit)))
+            } else {
+                progress = 0
+            }
+
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             timerRingLayer.strokeEnd = progress
             CATransaction.commit()
             
-            // Update labels
-            vc.timerLabel?.text = "\(Int(self.timeRemaining))"
-            vc.scoreLabel?.text = "Score: \(self.players[self.activePlayerIndex].score)"
-            
-            // Handle timeout
-            if self.timeRemaining <= 0 {
-                self.turnTimer?.invalidate()
-                self.turnTimer = nil
-                self.handlePlayerTimeout()
-            }
+            timerLabel.text = "\(Int(self.timeRemaining))"
+            scoreLabel.text = "Score: \(self.players[self.activePlayerIndex].score)"
         }
     }
     
@@ -285,9 +296,6 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
         
         // Setup timer ring
         setupTimerRing(in: view, timerLabel: uiElements.timerLabel)
-        
-        // Start first turn
-        startNewTurn()
     }
     
     private func setupTimerRing(in view: UIView, timerLabel: UILabel) {
