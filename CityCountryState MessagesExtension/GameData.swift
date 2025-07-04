@@ -22,7 +22,7 @@ struct GameData {
 protocol GameMode: AnyObject {
     var viewController: MessagesViewController? { get set }
     var currentLetter: String { get }
-    var score: Int { get }
+    var score: Int? { get }
     func stopGame()
     func resetGame()
     
@@ -30,4 +30,18 @@ protocol GameMode: AnyObject {
     func handleIncomingMessage(components: URLComponents)
     
     func updateUI()
+}
+
+class Player {
+    let id: String
+    var name: String
+    var score: Int
+    var isActive: Bool
+    
+    init(id: String = UUID().uuidString, name: String, score: Int = 0, isActive: Bool = false) {
+        self.id = id
+        self.name = name
+        self.score = score
+        self.isActive = isActive
+    }
 }

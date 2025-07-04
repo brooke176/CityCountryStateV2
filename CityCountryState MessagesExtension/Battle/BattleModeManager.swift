@@ -13,27 +13,14 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     func startGame() {
-        setupUI()
+        print("[BattleModeManager] startGame() called")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.startNewTurn()
-        }
+        } // todo remove delay if possible
     }
 
-    var score: Int {
+    var score: Int? {
         return players.reduce(0) { $0 + $1.score }
-    }
-    class Player {
-        let id: String
-        var name: String
-        var score: Int
-        var isActive: Bool
-        
-        init(id: String = UUID().uuidString, name: String, score: Int = 0, isActive: Bool = false) {
-            self.id = id
-            self.name = name
-            self.score = score
-            self.isActive = isActive
-        }
     }
     
     weak var viewController: MessagesViewController?
@@ -104,6 +91,8 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
             return
         }
         
+        print("[BattleModeManager] Starting new turn for player index \(activePlayerIndex): \(players[activePlayerIndex].name)")
+        
         // Reset turn state
         timeRemaining = timeLimit
         vc.inputField.text = ""
@@ -123,6 +112,7 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
             
             // Start new timer
             self.turnTimer?.invalidate()
+            print("[BattleModeManager] Scheduling timer for \(self.timeRemaining) seconds")
             self.turnTimer = Timer.scheduledTimer(
                 withTimeInterval: 1, 
                 repeats: true
@@ -135,9 +125,12 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
     private func timerTick() {
         timeRemaining -= 1
         
+        print("[BattleModeManager] Timer tick — \(timeRemaining) seconds remaining")
+        
         // Handle timeout BEFORE trying to update any UI
         if timeRemaining <= 0 {
             turnTimer?.invalidate()
+            print("[BattleModeManager] Timer expired, invalidating")
             turnTimer = nil
             DispatchQueue.main.async { [weak self] in
                 self?.handlePlayerTimeout()
@@ -173,6 +166,7 @@ class BattleModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     func handlePlayerTimeout() {
+        print("[BattleModeManager] Handling player timeout for: \(players[activePlayerIndex].name)")
         viewController?.inputField.isEnabled = false
         viewController?.submitButton.isEnabled = false
         viewController?.inputField?.isHidden = true

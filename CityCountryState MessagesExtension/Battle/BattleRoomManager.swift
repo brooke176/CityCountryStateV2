@@ -197,10 +197,8 @@ private func showWaitingRoom() {
     vc.view.addSubview(startButton)
     containerView.addSubview(tableView)
 
-    // Layout constants
     let horizontalPadding: CGFloat = 20
     let tableViewMaxWidth: CGFloat = 400
-    let tableViewHeight: CGFloat = 60 * CGFloat(max(players.count, 1)) // 60pt per cell, at least 1 row
     let tableViewMinHeight: CGFloat = 60
     let tableViewSideInset: CGFloat = 16
 
@@ -209,13 +207,10 @@ private func showWaitingRoom() {
         titleLabel.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 20),
         titleLabel.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
 
-        // Center containerView vertically in view, below title
         containerView.centerYAnchor.constraint(equalTo: vc.view.centerYAnchor),
         containerView.centerXAnchor.constraint(equalTo: vc.view.centerXAnchor),
-        // containerView width is at most view width minus horizontalPadding*2, and at most tableViewMaxWidth
         containerView.widthAnchor.constraint(lessThanOrEqualTo: vc.view.widthAnchor, constant: -(horizontalPadding * 2)),
         containerView.widthAnchor.constraint(lessThanOrEqualToConstant: tableViewMaxWidth),
-        // containerView top at least below title
         containerView.topAnchor.constraint(greaterThanOrEqualTo: titleLabel.bottomAnchor, constant: 20),
 
         // TableView fills containerView, with side insets to prevent cells from spanning full width

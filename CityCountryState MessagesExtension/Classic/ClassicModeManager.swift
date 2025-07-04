@@ -2,29 +2,34 @@ import UIKit
 import Messages
 
 class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
-    func resetGame() {
-        resetClassicGame()
-    }
-    
     func handleIncomingMessage(components: URLComponents) {
+        print("[ClassicModeManager] Handling incoming message...")
         if let opponentScore = components.queryItems?.first(where: { $0.name == "score" })?.value.flatMap(Int.init) {
-            if score == 0 {
+            print("[ClassicModeManager] Opponent score received: \(opponentScore)")
+            if score == nil {
                 // This is the first player's turn
-                score = opponentScore
                 if let incomingLetter = components.queryItems?.first(where: { $0.name == "letter" })?.value {
                     currentLetter = incomingLetter
+                    print("[ClassicModeManager] Incoming letter set to: \(currentLetter)")
                 }
+                score = opponentScore
                 startGame()
             } else {
+                print("[ClassicModeManager] Comparing scores - Player: \(score ?? -1), Opponent: \(opponentScore)")
                 // This is the response with opponent's score
-                if score > opponentScore {
-                    viewController?.feedbackLabel.text = "You won! 🎉\nYour score: \(score)\nOpponent: \(opponentScore)"
-                } else if score < opponentScore {
-                    viewController?.feedbackLabel.text = "You lost. 😢\nYour score: \(score)\nOpponent: \(opponentScore)"
+                if (score ?? 0) > opponentScore {
+                    print("[ClassicModeManager] Result: Player won")
+                    viewController?.feedbackLabel.text = "You won! 🎉\nYour score: \(score ?? 0)\nOpponent: \(opponentScore)"
+                } else if (score ?? 0) < opponentScore {
+                    print("[ClassicModeManager] Result: Player lost")
+                    viewController?.feedbackLabel.text = "You lost. 😢\nYour score: \(score ?? 0)\nOpponent: \(opponentScore)"
                 } else {
-                    viewController?.feedbackLabel.text = "It’s a tie! 🤝\nScore: \(score)"
+                    print("[ClassicModeManager] Result: Tie")
+                    viewController?.feedbackLabel.text = "It’s a tie! 🤝\nScore: \(score ?? 0)"
                 }
             }
+        } else {
+            print("[ClassicModeManager] No opponent score found in incoming message")
         }
     }
     
@@ -34,13 +39,13 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
             feedbackLabel: vc.feedbackLabel,
             inputField: vc.inputField,
             submitButton: vc.submitButton,
-            p1: score,
+            p1: score ?? 0,
             p2: opponentScore
         )
     }
     weak var viewController: MessagesViewController?
     
-    var score: Int = 0
+    var score: Int?
     private var timeRemaining: TimeInterval = 30
     private let timeLimit: TimeInterval = 20
     private var timer: Timer?
@@ -58,35 +63,41 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     func startGame() {
-        resetClassicGame()
+        print("[ClassicModeManager] Starting game...")
+        resetGame()
         setupUI()
         startTimer()
     }
     
     func sendInitialInvite() {
-        guard let vc = viewController, let conversation = vc.activeConversation else { return }
-
+        guard let vc = viewController, let conversation = vc.activeConversation else {
+            print("[ClassicModeManager] Failed to send invite: no view controller or conversation")
+            return
+        }
+        
+        print("[ClassicModeManager] Sending initial invite...")
+        
         let layout = MSMessageTemplateLayout()
         layout.caption = "LET’S PLAY CITY COUNTRY STATE!"
         layout.image = UIImage(named: "newimage")
         layout.subcaption = "Classic Mode"
-
+        
         var components = URLComponents()
         components.queryItems = [
             URLQueryItem(name: "mode", value: "classic"),
             URLQueryItem(name: "score", value: "0"),
             URLQueryItem(name: "letter", value: generateRandomLetter())
         ]
-
+        
         let message = MSMessage()
         message.layout = layout
         message.url = components.url
-
+        
         conversation.insert(message) { error in
             if let error = error {
-                print("Error sending classic mode invite: \(error.localizedDescription)")
+                print("[ClassicModeManager] Error sending classic mode invite: \(error.localizedDescription)")
             } else {
-                print("Classic mode invite sent.")
+                print("[ClassicModeManager] Classic mode invite sent successfully.")
             }
         }
     }
@@ -117,7 +128,11 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     @objc private func submitButtonTapped() {
-        guard let inputText = viewController?.inputField.text else { return }
+        guard let inputText = viewController?.inputField.text else {
+            print("[ClassicModeManager] Submit button tapped but input field is empty")
+            return
+        }
+        print("[ClassicModeManager] Submit button tapped with input: \(inputText)")
         handleSubmit(input: inputText)
     }
     
@@ -129,13 +144,14 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
             timerRingLayer: vc.timerRingLayer,
             timeRemaining: timeRemaining,
             timeLimit: timeLimit,
-            score: score
+            score: score ?? 0
         )
         vc.letterDisplayLabel?.text = currentLetter
     }
     
-    func resetClassicGame() {
-        score = 0
+    func resetGame() {
+        print("[ClassicModeManager] Resetting classic game state")
+        score = nil
         timeRemaining = timeLimit
         if currentLetter.isEmpty { currentLetter = generateRandomLetter() }
         usedWords.removeAll()
@@ -150,6 +166,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     private func startTimer() {
+        print("[ClassicModeManager] Starting timer with \(timeRemaining) seconds remaining")
         timer?.invalidate()
         timer = Timer.scheduledTimer(
             timeInterval: 1.0,
@@ -165,33 +182,42 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
         updateUI()
         
         if timeRemaining <= 0 {
+            print("[ClassicModeManager] Timer expired")
             timer?.invalidate()
             handleTimeout()
         }
     }
     
     private func handleTimeout() {
-        guard let viewController = viewController else { return }
-
+        print("[ClassicModeManager] Handling timeout - time's up!")
+        guard let viewController = viewController else {
+            print("[ClassicModeManager] No view controller in handleTimeout")
+            return
+        }
+        
         viewController.letterDisplayLabel?.isHidden = true
         viewController.inputField?.isHidden = true
         viewController.submitButton?.isHidden = true
         viewController.timerLabel?.isHidden = true
         viewController.scoreLabel?.isHidden = true
         viewController.requestPresentationStyle(.compact)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        
+        DispatchQueue.main.async {
             self.showGameOverView()
         }
     }
 
     private func showGameOverView() {
-        guard let vc = viewController, let conversation = vc.activeConversation else { return }
-
-        let gameOverView = GameUIHelper.buildGameOverView(score: score)
+        print("[ClassicModeManager] Showing game over view with score: \(score ?? 0)")
+        guard let vc = viewController, let conversation = vc.activeConversation else {
+            print("[ClassicModeManager] Missing view controller or conversation in showGameOverView")
+            return
+        }
+        
+        let gameOverView = GameUIHelper.buildGameOverView(score: score ?? 0)
         GameManager.shared.clearUI(in: vc.view)
         vc.view.addSubview(gameOverView)
-
+        
         gameOverView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             gameOverView.topAnchor.constraint(equalTo: vc.view.topAnchor),
@@ -199,24 +225,24 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
             gameOverView.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor),
             gameOverView.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor)
         ])
-
+        
         var components = URLComponents()
         components.queryItems = [
             URLQueryItem(name: "mode", value: "classic"),
-            URLQueryItem(name: "score", value: "\(score)"),
+            URLQueryItem(name: "score", value: "\(score ?? 0)"),
             URLQueryItem(name: "letter", value: currentLetter)
         ]
-
+        
         let layout = MSMessageTemplateLayout()
         layout.caption = "LET’S PLAY CITY COUNTRY STATE!"
         layout.image = UIImage(named: "newimage")
         layout.subcaption = "Classic Mode"
-
+        
         conversation.selectedMessage?.url = components.url
         conversation.selectedMessage?.layout = layout
-
+        
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-
+        
         gameOverView.feedbackLabel?.text = "Score sent ✓"
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.animateWaitingDots(in: gameOverView.feedbackLabel!)
@@ -234,30 +260,40 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     }
     
     func handleSubmit(input: String) {
-        guard let vc = viewController else { return }
+        guard let vc = viewController else {
+            print("[ClassicModeManager] handleSubmit called but no view controller")
+            return
+        }
         let rawInput = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
+        print("[ClassicModeManager] Handling submit with input: '\(rawInput)'")
+        
         if rawInput.isEmpty {
+            print("[ClassicModeManager] Input empty - prompting user")
             vc.feedbackLabel.text = "Please enter a word."
             return
         }
-
+        
         if !rawInput.hasPrefix(currentLetter.lowercased()) {
+            print("[ClassicModeManager] Input does not start with required letter '\(currentLetter)'")
             vc.feedbackLabel.text = "Hmm... doesn't start with \(currentLetter)"
             return
         }
-
+        
         if usedWords.contains(rawInput) {
+            print("[ClassicModeManager] Input word '\(rawInput)' already used")
             vc.feedbackLabel.text = "That word was already used."
             return
         }
-
+        
         if GameData.allCities.contains(rawInput) || GameData.allCountries.contains(rawInput) || GameData.allStates.contains(rawInput) {
+            print("[ClassicModeManager] Accepted word '\(rawInput)'. Incrementing score")
             usedWords.insert(rawInput)
-            score += 1
+            if score == nil { score = 0 }
+            score! += 1
             GameManager.shared.animatePlusOne()
             updateUI()
         } else {
+            print("[ClassicModeManager] Unknown word '\(rawInput)'")
             vc.feedbackLabel.text = "We don't know this one!"
         }
         vc.inputField.text = ""
@@ -265,6 +301,7 @@ class ClassicModeManager: NSObject, GameMode, UITextFieldDelegate {
     
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         if let input = textField.text {
+            print("[ClassicModeManager] TextField return pressed with input: '\(input)'")
             handleSubmit(input: input)
         }
         return true
